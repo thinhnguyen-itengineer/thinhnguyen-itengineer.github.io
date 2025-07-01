@@ -1,0 +1,768 @@
+<!DOCTYPE html>
+<html lang="en" class="no-js">
+   <meta charset="utf-8">
+   <!-- Mirrored from lmpixels.com/demo/sunshine-demo/sunshine-version-1/sunshine-v1-html-template/index.html by HTTrack Website Copier/3.x [XR&CO'2014], Sat, 18 Jan 2020 14:02:17 GMT -->
+   <head>
+      <meta charset="UTF-8" />
+      <meta http-equiv="X-UA-Compatible" content="IE=edge">
+      <title>CV</title>
+      <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+      <meta name="description" content="Thinh Nguyen CV Web" />
+      <meta name="author" content="lmtheme" />
+      <link href='https://css.gg/menu-grid-o.css' rel='stylesheet'>
+      <link rel="shortcut icon" href="favicon.ico">
+      <link rel="stylesheet" href="css/bootstrap.min.css">
+      <link rel="stylesheet" href="css/normalize.css">
+      <link rel="stylesheet" href="css/transition-animations.css">
+      <link rel="stylesheet" href="css/owl.carousel.css">
+      <link rel="stylesheet" href="css/magnific-popup.css">
+      <link rel="stylesheet" href="css/animate.css">
+      <link rel="stylesheet" href="css/main.css" type="text/css">
+      <style>
+         iframe {
+         border: 1px solid white;
+         width: 100%;
+         }
+         .output {
+         background: #eee;
+         }
+
+         .header-responsive-mobile {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 15px;
+            background-color: #f8f9fa;
+            border-bottom: 1px solid #ddd;
+            }
+
+            .button-more {
+            background-color: transparent;
+            border: none;
+            font-size: 16px;
+            cursor: pointer;
+            }
+
+            .user-info {
+            text-align: right;
+            }
+
+            .user-info h5 {
+            margin: 0;
+            font-size: 16px;
+            }
+
+            .user-info sup {
+               font-size: 12px;
+               color: #666;
+               top: -8px;
+            }
+      </style>
+      <link rel="stylesheet" href="preview/lmpixels-demo-panel.css" type="text/css">
+      <script src="js/jquery-2.1.3.min.js"></script>
+      <script src="js/modernizr.custom.js"></script>
+      <script src='../../../../../www.google.com/recaptcha/api.js'></script>
+   </head>
+   <body>
+      <div class="preloader">
+         <div class="preloader-animation">
+            <div class="dot1"></div>
+            <div class="dot2"></div>
+         </div>
+      </div>
+      <div id="page" class="page">
+      <header id="site_header" class="header">
+         <div class="my-photo">
+            <img src="images/avt.jpg" height=""  alt="image">
+            <div class="mask"></div>
+         </div>
+         <div class="header-responsive-mobile">
+            <button class="button-more" onclick="handleClickMenu()">☰ Menu</button>
+            <div class="user-info">
+              <h5>Nguyen Phuc Thinh</h5>
+             
+            </div>
+          </div>
+         <div class="site-title-block" style="font-weight: 800; background-color: #eee; padding: 1px; border-radius: 15px;">
+            <h1 class="site-title" style="
+               color: black;
+               text-shadow: 2px 2px 6px rgba(0, 0, 0, 0.5);
+               ">
+               Nguyễn Phúc Thịnh
+            </h1>
+            <h3 style="
+               color: #333;
+               text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.6);
+               ">
+               Software Engineer
+            </h3>
+            <!-- <div style="line-height: 0 !important; font-weight: 800; color: blueviolet !important;">6 Years of Experience</div> -->
+            <div style="display: flex; align-items: center; justify-content: center; margin: 20px;">
+               <!-- Tia sét bên trái -->
+               <span style="font-size: 24px; color: #D32F2F; margin-right: 10px;">⚡</span>
+               <!-- Khung bao và chữ -->
+               <span style="
+                  border: 3px solid #D32F2F;
+                  padding: 8px 16px;
+                  border-radius: 8px;
+                  font-weight: bold;
+                  color: #D32F2F;
+                  font-size: 20px;
+                  background-color: #FFF5F5;
+                  box-shadow: 12px 5px 12px rgba(211, 47, 47, 0.3); /* Đổ bóng đỏ nhạt */
+                  transition: box-shadow 0.9s ease;
+                  ">
+               6 Years of Experience
+               </span>
+               <!-- Tia sét bên phải -->
+               <span style="font-size: 24px; color: #D32F2F; margin-left: 10px;">⚡</span>
+               
+            </div>
+         </div>
+         <div class="site-title-block" style="font-weight: 700; padding-top: 400px;">
+         </div>
+         <a class="menu-toggle mobile-visible">
+         <i class="fa fa-bars"></i>
+         </a>
+      </header>
+      <!-- /Header -->
+      <!-- Main Content -->
+      <div id="main" class="site-main">
+      <!-- Page changer wrapper -->
+      <div class="pt-wrapper">
+      <!-- <div class="site-nav mobile-menu-hide22">1222222222</div> -->
+      <!-- Navigation & Social buttons -->
+      <div class="site-nav mobile-menu-hide">
+         <!-- Main menu -->
+         <img class="mobile-avt" src="images/avt.jpg" height=""  alt="image">
+         <ul id="nav" class="site-main-menu">
+            <!-- About Me Subpage link -->
+            <li>
+               <a class="pt-trigger" href="#resume" data-animation="59" onclick="handleClickMenu()" data-goto="2">Home</a>
+            </li>
+            <!-- <li>
+               <a class="pt-trigger" href="#about_me" data-animation="58" onclick="handleClickMenu()" data-goto="1">About me</a>
+            </li> -->
+            <!-- /About Me Subpage link -->
+            <!-- <li>
+               <a class="pt-trigger" href="#portfolio" data-animation="60" onclick="handleClickMenu()" data-goto="3"></a>
+            </li> -->
+            <li>
+               <a class="pt-trigger" href="#company" data-animation="60" onclick="handleClickMenu()" data-goto="4"> Gallery</a>
+            </li>
+            <!-- <li>
+               <a class="pt-trigger" href="#contact" data-animation="58" onclick="handleClickMenu()" data-goto="5">Contact</a>
+            </li> -->
+         </ul>
+         <!-- /Main menu -->
+         <!-- Social buttons -->
+         <ul class="social-links">
+            <li><a class="tip social-button" href="https://www.linkedin.com/in/thinh-nguyen-it/" title="Linkedin"><i class="fa fa-linkedin"></i></a></li>
+            <!-- Full list of social icons: http://fontawesome.io/icons/#brand -->
+            <li><a class="tip social-button" href="https://github.com/thinhnguyen-itengineer" title="Git"><i class="fa fa-github"></i></a></li>
+            <li>
+               <form method="get" action="NGUYEN-PHUC-THINH-1-7-25.pdf">
+                  <button class="button" style="
+                     padding-bottom: 4px;
+                     font-weight: 800;
+                     margin-left: 10px;
+                     padding-top: 4px;
+                     border-top-width: 2px;
+                     " ><i class="fa fa-download"></i> Download CV</button>
+               </form>
+            </li>
+            <!--<li><a class="tip social-button" href="#" title="Youtube"><i class="fa fa-youtube"></i></a></li>-->
+            <!--<li><a class="tip social-button" href="#" title="last.fm"><i class="fa fa-lastfm"></i></a></li>-->
+            <!--<li><a class="tip social-button" href="#" title="Dribbble"><i class="fa fa-dribbble"></i></a></li>-->
+         </ul>
+         <!-- /Social buttons -->
+      </div>
+      <!-- Navigation & Social buttons -->
+      <!-- Subpages -->
+      <div class="subpages">
+         <!-- About Me Subpage -->
+         <section class="pt-page pt-page-1" data-id="resume">
+            <div class="section-title-block">
+               <h2 class="section-title">About me</h2>
+            </div>
+            <div class="row">
+               <div class="col-sm-12 col-md-12 mobile-visible subpage-block">
+                  <div class="my-photo-small">
+                     <img src="images/photo_small.jpg" alt="image">
+                  </div>
+               </div>
+               <div class="col-sm-6 col-md-6 subpage-block">
+                  <div class="general-info">
+                     <div class="block-title">
+                        <h3>Career Objective</h3>
+                     </div>
+                     <p>
+                        With a strong commitment to delivering high-quality results in both product outcomes and code standards, I always strive to complete every assigned task with excellence. My objective is to continuously improve myself through each project, not only in technical skills but also in problem-solving and collaboration. I aim to contribute to the sustainable growth and success of the projects and the company I work for. By aligning personal development with organizational goals, I believe I can become a valuable asset who actively supports innovation, efficiency, and long-term progress.
+                     </p>
+                  </div>
+               </div>
+           
+               <div class="col-sm-6 col-md-6 subpage-block">
+                  <div class="general-info">
+                     <div class="block-title">
+                        <h3>Strengths</h3>
+                     </div>
+                     <p>Sociable, friendly, and a good team player</p>
+                     <p>Always maintain a positive and optimistic attitude</p>
+                     <p>Quick to learn and adapt to new technologies</p>
+                     <p>Strong ability to read and understand technical documents in English</p>
+                     <p>Good at analyzing and solving problems independently</p>
+                  </div>
+               </div>
+            </div>
+            <!-- Services block -->
+            <div class="block-title">
+               <h3>Interests</h3>
+            </div>
+            <div class="row">
+               <div class="col-sm-6 col-md-3 subpage-block">
+                  <div class="service-block">
+                     <div class="service-info">
+                        <img style="height: 350px;" src="images/service/coding-png.png" alt="Responsive Design">
+                        <h4>Coding</h4>
+                     </div>
+                  </div>
+               </div>
+               <div class="col-sm-6 col-md-3 subpage-block">
+                  <div class="service-block">
+                     <div class="service-info">
+                        <img style="height: 350px;" src="images/service/book1.png" alt="Copywriter">
+                        <h4>Read Book</h4>
+                     </div>
+                  </div>
+               </div>
+               <div class="col-sm-6 col-md-3 subpage-block">
+                  <div class="service-block">
+                     <div class="service-info">
+                        <img style="height: 350px;" src="images/service/tech1.png" alt="Management">
+                        <h4>Learn new technology</h4>
+                     </div>
+                  </div>
+               </div>
+               <div class="col-sm-6 col-md-3 subpage-block">
+                  <div class="service-block">
+                     <div class="service-info">
+                        <img style="height: 350px;" src="images/service/play.png" alt="E-Commerce">
+                        <h4 style="padding-top:2px;">Going away with my friends</h4>
+                     </div>
+                  </div>
+               </div>
+            </div>
+            <div class="row">
+               <div class="col-sm-6 col-md-3 subpage-block">
+                  <div class="service-block">
+                     <div class="service-info">
+                        <img style="height: 350px;" src="images/service/commu.jpg" alt="Responsive Design">
+                        <h4>Join the developer community</h4>
+                     </div>
+                  </div>
+               </div>
+               <div class="col-sm-6 col-md-3 subpage-block">
+                  <div class="service-block">
+                     <div class="service-info">
+                        <img style="height: 350px;" src="images/service/game.jpg" alt="Copywriter">
+                        <h4>Play logic games</h4>
+                     </div>
+                  </div>
+               </div>
+               <div class="col-sm-6 col-md-3 subpage-block">
+                  <div class="service-block">
+                     <div style="height: 350px; padding-top: 10px;" class="service-info">
+                        <img src="images/service/ai block.jpg" alt="Management">
+                        <h4>Reseach new tech Blockchain, AI...</h4>
+                     </div>
+                  </div>
+               </div>
+               <div class="col-sm-6 col-md-3 subpage-block">
+                  <div class="service-block">
+                     <div style="height: 350px;" class="service-info">
+                        <img src="images/service/music.png" alt="Management">
+                        <h4>Listen to music</h4>
+                     </div>
+                  </div>
+               </div>
+            </div>
+         </section>
+         <!-- End of About Me Subpage -->
+         <!-- Resume Subpage -->
+         <section class="pt-page pt-page-2" data-id="resume">
+            <!-- <div class="section-title-block">
+               <h2 class="section-title">Resume (6 + Years of Experience)</h2>
+            </div> -->
+            <div class="row">
+               <div class="col-sm-12 col-md-12 subpage-block">
+                  <div class="block-title">
+                     <h3>SUMMARY</h3>
+                  </div>
+                  <div>
+                     I’m a <b>Senior Software Engineer </b> with <b>over six years</b> of experience in developing scalable, user-centric web applications, with a <b> strong focus on front-end development</b>.
+                     I specialize in building responsive, high-quality interfaces using <b>HTML</b>,<b> CSS</b>, <b>JavaScript</b>, and <b>React</b>, ensuring seamless performance across browsers and devices. My work emphasizes usability, accessibility, and clean design principles.
+                     In addition to front-end expertise, I’m also experienced in back-end development with <b>C#</b> and <b>.NET 6+ </b>, and proficient in working with <b>SQL Server</b> to design databases, write complex queries, and optimize performance. I take pride in writing clean, maintainable code and delivering intuitive digital experiences that align with both user needs and business goals.
+                      <div>
+                        <br>
+                        <strong>Focused technical skills in recent years include:</strong>
+                        <ul>
+                           <li><strong>Frontend:</strong> Proficient in <strong>React</strong>, <strong>Redux</strong>, <strong>JavaScript</strong>, <strong>HTML</strong>, and <strong>CSS</strong>, <strong>Next.js</strong> framework, with strong skills in both framework-based and vanilla JavaScript development.</li>
+                           <li><strong>Libraries UI:</strong> Experienced in working with popular UI libraries including <strong>Semantic UI</strong>, <strong>Ant Design</strong>, and <strong>Reactstrap</strong>.</li>
+                           <li><strong>Backend:</strong> Proficient in <strong>C#</strong> and <strong>.NET 6+</strong> for building scalable backends and <strong>RESTful APIs</strong>.</li>
+                           <li><strong>Database:</strong> Strong in <strong>SQL Server</strong>, with hands-on experience in PostgreSQL.</li>
+                           <li><strong>Methodology:</strong> <strong>Microservices Architecture</strong>, Agile Scrum</li>
+                           <li><strong>Others:</strong> Teams work, Work independently, <strong>Power BI</strong>, Problem-Solving, <strong>Git</strong>, GitLab, Jira...</li>
+                        </ul>
+                     </div>
+                  </div>
+                   <div class="block-title">
+                     <h3>WORK EXPERIENCE</h3>
+                  </div>
+                  <div>
+                     <h3>Auvenir</h3>
+                     <em>Senior Software Engineer</em>
+                     <p><strong>Mar 2022 – Present</strong></p>
+                     <p>Software company specializing in audit software outsourcing and in-house product development.</p>
+                     <ul>
+                        <li><strong>Key Contribution:</strong>
+                           <ul>
+                           <li>Enhanced <strong>UI/UX accessibility</strong> for visually impaired users by integrating screen reader support, high-contrast modes, and keyboard shortcuts.</li>
+                           <li>Built a <strong>performance reporting module</strong> by embedding <strong>Power BI</strong> into a ReactJS-based system.</li>
+                           <li><strong>Integrated third-party libraries</strong> such as <strong>PDFKit</strong>, <strong>DevExpress</strong>, and <strong>Spreadsheet</strong> components into ReactJS to support dynamic report generation, advanced UI interactions, and complex data handling within audit-related features.</li>
+                           <li><strong>Collaborated</strong> with PO, BA, and Designer during Sprint Planning to align on new feature ideas and product goals.</li>
+                           <li>Participated in the migration process from <strong>.NET 6</strong> to <strong>.NET 8</strong>.</li>
+                           <li>Participated in performance evaluations across releases to <strong>optimize system</strong> efficiency and enhance <strong>user experience</strong>, <strong>ensuring stable performance as user volume increased</strong>.</li>
+                           <li><strong>Guided new team members</strong> through local environment setup for the project, ensuring smooth onboarding.</li>
+                           </ul>
+                        </li>
+                        <li><strong>Key Techs:</strong> ReactJS, Javascript, Semantic UI, SCSS, .NET 8, SQL Server, Microservices.</li>
+                     </ul>
+                     </div>
+                     <div>
+                        <h3>Logi Gear</h3>
+                        <em>Junior Fullstack Developer</em>
+                        <p><strong>Mar 2021 – Mar 2022</strong></p>
+                        <p>A tech company specializing in CRM solutions and automated software testing tools.</p>
+                        <ul>
+                           <li><strong>Key Contribution:</strong>
+                              <ul>
+                              <li>Implemented new features based on requirements and resolved bugs during development.</li>
+                              <li>Led a project team of <strong>4 members</strong>, mentoring junior developers and recommending appropriate technologies and solutions.</li>
+                              <li><strong>Break tasks</strong> and conducted <strong>code reviews</strong> to ensure quality.</li>
+                              <li>Worked with PO and BA during Sprint Planning to understand new features and project goals.</li>
+                              <li>Supported <strong>database design</strong> and application development tasks as assigned.</li>
+                              </ul>
+                           </li>
+                           <li><strong>Key Techs:</strong> ReactJS, Next.js, Javascript, Reactstrap, SCSS, .NET 8, SQL Server.</li>
+                        </ul>
+
+                        <h3>Evizi</h3>
+                        <em>Junior Fullstack Developer</em>
+                        <p><strong>Mar 2020 – Mar 2021</strong></p>
+                        <p>Software company specializing in audit software outsourcing</p>
+                        <ul>
+                           <li><strong>Key Contribution:</strong> Analyzed requirements, implemented technical tasks, and wrote clean, testable code. Proposed performance improvements and migrated over 1M records with images from Caspio to Azure SQL Server.</li>
+                           <li><strong>Key Techs:</strong> ReactJS, Next.js, Javascript, Reactstrap, SCSS, .NET, SQL Server.</li>
+                        </ul>
+
+                        <h3>Fujinet</h3>
+                        <em>Fresher Web Developer</em>
+                        <p><strong>Jan 2019 – Mar 2020</strong></p>
+                        <p>Fujinet is a software outsourcing company focused on the Japanese market.</p>
+                        <ul>
+                           <li><strong>Key Contribution:</strong> Learned and implemented features under team lead guidance, followed development processes, wrote and reviewed code, and maintained the system.</li>
+                           <li><strong>Key Techs:</strong> ReactJS, Next.js, Javascript, Reactstrap, SCSS, .NET, SQL Server, Caspio.</li>
+                        </ul>
+                        </div>
+
+                  <div class="block-title">
+                     <h3>PROJECTS</h3>
+                  </div>
+                  <div>
+                  <h3>Auvenir</h3>
+                  <p><em>ReactJS, JS, Semantic UI, SCSS, .NET 6, SQL Server, Microservices, PowerBI</em> — <strong>Mar 2022 – Present</strong></p>
+                  <ul>
+                     <li>Improved system responsiveness and stability across releases, <em>enhancing user experience and directly contributing to increased product revenue</em>.</li>
+                     <li>Implemented <strong>screen reader</strong> and <strong>keyboard navigation support</strong>, <em>ensuring accurate and seamless use of the audit system for all users</em>. Received positive client feedback.</li>
+                     <li>Integrated <strong>PDFKit</strong>, <strong>DevExpress</strong>, and <strong>Spreadsheet</strong> into ReactJS, enabling complex audit features and significantly improving development efficiency and end-user experience.</li>
+                     <li><em>Developed performance reporting</em> to track audit progress and efficiency, <em>increasing transparency and reducing process time by <strong>30%</strong></em>.</li>
+                     <li>Quickly grasp complex feature logic and proactively review implementation to minimize bugs. Frequently entrusted by team leads with high-impact or technically challenging tasks.</li>
+                  </ul>
+
+                  <h3>Beehive</h3>
+                  <p><em>ReactJS, Javascript, Ant Design UI, SCSS, .NET 8, SQL Server, Microservices</em> — <strong>Mar 2021 – Mar 2022</strong></p>
+                  <ul>
+                     <li>Developed a cross-platform <strong>embeddable script</strong> for partner websites to collect order data, enabling accurate commission tracking across platforms like WordPress, Shopify, and custom websites.</li>
+                     <li><em>Collaborated closely with PO and BA</em> to define and polish features upfront, <em>reducing rework by <strong>40%</strong> and accelerating development cycles</em>.</li>
+                     <li>Improved overall product performance by <strong>optimizing</strong> frontend rendering, backend processing, and database queries, resulting in <em>faster load times, reduced server load</em>.</li>
+                  </ul>
+                  </div>
+
+                 
+               </div>
+
+               <!-- <div class="col-sm-6 col-md-4 subpage-block">
+                  <div class="block-title">
+                     <h3>Programming language skills</h3>
+                  </div>
+                  <div class="skills-info">
+                     <h4>C#</h4>
+                     <div class="skill-container">
+                        <div class="skill-percentage skill-8"></div>
+                     </div>
+                     <h4>SQL Server</h4>
+                     <div class="skill-container">
+                        <div class="skill-percentage skill-8"></div>
+                     </div>
+                     <h4>Postgre Sql</h4>
+                     <div class="skill-container">
+                        <div class="skill-percentage skill-6"></div>
+                     </div>
+                     <h4>Java Script</h4>
+                     <div class="skill-container">
+                        <div class="skill-percentage skill-7"></div>
+                     </div>
+                     <h4>HTML, CSS</h4>
+                     <div class="skill-container">
+                        <div class="skill-percentage skill-5"></div>
+                     </div>
+                     <h4>Java</h4>
+                     <div class="skill-container">
+                        <div class="skill-percentage skill-6"></div>
+                     </div>
+                     <h4>Power BI</h4>
+                     <div class="skill-container">
+                        <div class="skill-percentage skill-6"></div>
+                     </div>
+                  </div>
+                  <div class="block-title">
+                     <h3>Framework skills</h3>
+                  </div>
+                  <div class="skills-info">
+                     <h4>.NET Core, .NET Framework</h4>
+                     <div class="skill-container">
+                        <div class="skill-percentage skill-8"></div>
+                     </div>
+                     <h4>React (React Hook, React Component)</h4>
+                     <div class="skill-container">
+                        <div class="skill-percentage skill-8"></div>
+                     </div>
+                     <h4>Vuejs</h4>
+                     <div class="skill-container">
+                        <div class="skill-percentage skill-5"></div>
+                     </div>
+                     <h4>Spring Framwork</h4>
+                     <div class="skill-container">
+                        <div class="skill-percentage skill-5"></div>
+                     </div>
+                  </div>
+                  <div class="block-title">
+                     <h3>Skills other</h3>
+                  </div>
+                  <div class="skills-info">
+                     <h4>Using AI to support and accelerate work tasks</h4>
+                     <div class="skill-container">
+                        <div class="skill-percentage skill-7"></div>
+                     </div>
+                     <h4>Team work</h4>
+                     <div class="skill-container">
+                        <div class="skill-percentage skill-8"></div>
+                     </div>
+                     <h4>Git, Git lab</h4>
+                     <div class="skill-container">
+                        <div class="skill-percentage skill-7"></div>
+                     </div>
+                     <h4>Problem-solving </h4>
+                     <div class="skill-container">
+                        <div class="skill-percentage skill-7"></div>
+                     </div>
+                  </div>
+               </div> -->
+            </div>
+            <div class="row">
+               <div class="col-sm-12 col-md-12 subpage-block">
+                  <div class="block-title">
+                     <h3>Education</h3>
+                  </div>
+                     <div class="timeline">
+                     <div>
+                        <h3>Nong Lam HCM University</h3>
+                        <p><strong>2015 – 2019</strong></p>
+                        <ul>
+                           <li><strong>Major:</strong> Information Technology</li>
+                           <li><strong>Technologies Stack:</strong> C#, .NET Core, Entity Framework, ReactJS, SQL Server, Azure Function</li>
+                           <li><strong>Description:</strong>
+                              <ul>
+                                 <li>Comprehensive training in software development, information systems, databases, networking, and cybersecurity.</li>
+                                 <li>Familiar with programming languages and technologies including C#, Java, .NET, HTML, CSS, JavaScript, SQL Server.</li>
+                                 <li>Participated in practical labs, real-world projects, and internship programs at IT companies.</li>
+                              </ul>
+                           </li>
+                        </ul>
+                        </div>
+                  </div>
+               </div>
+            </div>
+         </section>
+         <!-- End Resume Subpage -->
+         <!-- Portfolio Subpage -->
+         <section class="pt-page pt-page-4" data-id="portfolio">
+            <div class="section-title-block">
+               <h2 class="section-title">My Project (when I was in school)</h2>
+            </div>
+            <!-- Portfolio Content -->
+            <div class="portfolio-content">
+               <!-- Portfolio filter -->
+               <ul id="portfolio_filters" class="portfolio-filters">
+                  <li class="active">
+                     <a class="filter btn btn-sm btn-link active" data-group="lv2019">Blockchain Personnel Management</a>
+                  </li>
+                  <li>
+                     <a class="filter btn btn-sm btn-link" data-group="laptopshop">Laptop Shop</a>
+                  </li>
+                  <li>
+                     <a class="filter btn btn-sm btn-link" data-group="tmdt">System Car Rental</a>
+                  </li>
+               </ul>
+               <!-- End of Portfolio filter -->
+               <!-- Portfolio Grid -->
+               <div id="portfolio_grid" class="portfolio-grid portfolio-masonry masonry-grid-4">
+                  <!-- Portfolio Item 1 -->
+                  <figure class="item" data-groups='["lv2019"]'>
+                     <a href="images/project_img/lv.png" class="lightbox" title="">
+                        <img src="images/project_img/lv.png" alt="">
+                        <div>
+                           <i class="fa fa-image"></i>
+                        </div>
+                     </a>
+                  </figure>
+                  <!-- /Portfolio Item 1 -->
+                  <!-- Portfolio Item 2 -->
+                  <figure class="item" data-groups='["lv2019"]'>
+                     <a href="images/project_img/lv1.png" class="lightbox" title="">
+                        <img src="images/project_img/lv1.png" alt="">
+                        <div>
+                           <i class="fa fa-image"></i>
+                        </div>
+                     </a>
+                  </figure>
+                  <!-- /Portfolio Item 2 -->
+                  <!-- Portfolio Item 3 -->
+                  <figure class="item" data-groups='["lv2019"]'>
+                     <a href="images/project_img/lv2.png" class="lightbox" title="">
+                        <img src="images/project_img/lv2.png" alt="">
+                        <div>
+                           <i class="fa fa-image"></i>
+                        </div>
+                     </a>
+                  </figure>
+                  <!-- /Portfolio Item 3 -->
+                  <!-- Portfolio Item 4 -->
+                  <figure class="item" data-groups='["lv2019"]'>
+                     <a href="images/project_img/lv3.png" class="lightbox" title="">
+                        <img src="images/project_img/lv3.png" alt="">
+                        <div>
+                           <i class="fa fa-image"></i>
+                        </div>
+                     </a>
+                  </figure>
+                  <!-- /Portfolio Item 4 -->
+                  <!-- Portfolio Item 5 -->
+                  <figure class="item" data-groups='["lv2019"]'>
+                     <a href="images/project_img/lv4.png" class="lightbox" title="">
+                        <img src="images/project_img/lv4.png" alt="">
+                        <div>
+                           <i class="fa fa-image"></i>
+                        </div>
+                     </a>
+                  </figure>
+                  <!-- /Portfolio Item 5 -->
+                  <!-- Portfolio Item 6 -->
+                  <figure class="item" data-groups='["lv2019"]'>
+                     <a href="images/project_img/lv5.png" class="lightbox" title="">
+                        <img src="images/project_img/lv5.png" alt="">
+                        <div>
+                           <i class="fa fa-image"></i>
+                        </div>
+                     </a>
+                  </figure>
+                  <!-- /Portfolio Item 6 -->
+                  <!-- Portfolio Item 7 -->
+                  <figure class="item" data-groups='["lv2019"]'>
+                     <a href="images/project_img/lv6.png" class="lightbox" title="">
+                        <img src="images/project_img/lv6.png" alt="">
+                        <div>
+                           <i class="fa fa-image"></i>
+                        </div>
+                     </a>
+                  </figure>
+                  <!-- /Portfolio 
+                     <!-- /Portfolio Item 7 -->
+                  <figure class="item" data-groups='["lv2019"]'>
+                     <a href="images/project_img/lv7.png" class="lightbox" title="">
+                        <img src="images/project_img/lv7.png" alt="">
+                        <div>
+                           <i class="fa fa-image"></i>
+                        </div>
+                     </a>
+                  </figure>
+                  <!-- /Portfolio 
+                     <!-- /Portfolio Item 8 -->
+                  <!-- Portfolio Item 9 -->
+                  <figure class="item" data-groups='["lv2019"]'>
+                     <a href="images/project_img/lv8.png" class="lightbox" title="">
+                        <img src="images/project_img/lv8.png" alt="">
+                        <div>
+                           <i class="fa fa-image"></i>
+                        </div>
+                     </a>
+                  </figure>
+                  <!-- /Portfolio 
+                     <!-- /Portfolio Item 9 -->
+                  <!-- Portfolio Item 10 -->
+                  <figure class="item" data-groups='["lv2019"]'>
+                     <a href="images/project_img/lv9.png" class="lightbox" title="">
+                        <img src="images/project_img/lv9.png" alt="">
+                        <div>
+                           <i class="fa fa-image"></i>
+                        </div>
+                     </a>
+                  </figure>
+                  <!-- /Portfolio 
+                     <!-- /Portfolio Item 10 -->
+                  <!-- Portfolio Item 11 -->
+                  <figure class="item" data-groups='["lv2019"]'>
+                     <a href="images/project_img/lv10.png" class="lightbox" title="">
+                        <img src="images/project_img/lv10.png" alt="">
+                        <div>
+                           <i class="fa fa-image"></i>
+                        </div>
+                     </a>
+                  </figure>
+                  <!-- /Portfolio 
+                     <!-- /Portfolio Item 11 -->
+                  <!-- Portfolio Item 12 -->
+                  <figure class="item" data-groups='["lv2019"]'>
+                     <a href="images/project_img/lv11.png" class="lightbox" title="">
+                        <img src="images/project_img/lv11.jpeg" alt="">
+                        <div>
+                           <i class="fa fa-image"></i>
+                        </div>
+                     </a>
+                  </figure>
+                  <figure class="item" data-groups='["lv2019"]'>
+                     <a href="images/project_img/lv12.png" class="lightbox" title="">
+                        <img src="images/project_img/lv12.jpeg" alt="">
+                        <div>
+                           <i class="fa fa-image"></i>
+                        </div>
+                     </a>
+                  </figure>
+                  <figure class="item" data-groups='["laptopshop"]'>
+                     <a href="images/ltw/ltw1.png" class="lightbox" title="">
+                        <img src="images/ltw/ltw1.png" alt="">
+                        <div>
+                           <i class="fa fa-image"></i>
+                        </div>
+                     </a>
+                  </figure>
+                  <figure class="item" data-groups='["laptopshop"]'>
+                     <a href="images/ltw/ltw2.png" class="lightbox" title="">
+                        <img src="images/ltw/ltw2.png" alt="">
+                        <div>
+                           <i class="fa fa-image"></i>
+                        </div>
+                     </a>
+                  </figure>
+                  <figure class="item" data-groups='["laptopshop"]'>
+                     <a href="images/ltw/ltw3.png" class="lightbox" title="">
+                        <img src="images/ltw/ltw3.png" alt="">
+                        <div>
+                           <i class="fa fa-image"></i>
+                        </div>
+                     </a>
+                  </figure>
+                  <figure class="item" data-groups='["laptopshop"]'>
+                     <a href="images/ltw/ltw4.png" class="lightbox" title="">
+                        <img src="images/ltw/ltw4.png" alt="">
+                        <div>
+                           <i class="fa fa-image"></i>
+                        </div>
+                     </a>
+                  </figure>
+                  <figure class="item" data-groups='["laptopshop"]'>
+                     <a href="images/ltw/ltw5.png" class="lightbox" title="">
+                        <img src="images/ltw/ltw5.png" alt="">
+                        <div>
+                           <i class="fa fa-image"></i>
+                        </div>
+                     </a>
+                  </figure>
+                  <!-- /Portfolio 
+                     <!-- /Portfolio Item 12 -->
+                  <figure class="item" data-groups='["tmdt"]'>
+                     <a href="images/tmdt/TMDT.png" class="lightbox" title="">
+                        <img src="images/tmdt/TMDT.png" alt="">
+                        <div>
+                           <i class="fa fa-image"></i>
+                        </div>
+                     </a>
+                  </figure>
+               </div>
+               <!-- /Portfolio Grid -->
+            </div>
+            <!-- /Portfolio Content -->
+         </section>
+         <!-- /Portfolio Subpage -->
+         <section class="pt-page pt-page-3" data-id="company">
+            <!-- <div class="section-title-block">
+               <h2 class="section-title"> Gallery</h2>
+            </div> -->
+            <!-- Portfolio Content -->
+            <div class="portfolio-content">
+               <!-- Portfolio Grid -->
+               <iframe src="photos.html" style="border:none; width:100%; height:600px;"></iframe>
+            </div>
+         </section>
+         <!-- <section class="pt-page pt-page-5" data-id="contact">
+         <div class="section-title-block">
+         <h2 class="section-title">Contact</h2>
+         </div>
+         <div class="row">
+         <div class="col-sm-12 col-md-12 subpage-block">
+            <iframe src="contact.html" style="border:none; width:100%; height:600px;"></iframe>
+         </div>
+         </div>
+         </section> -->
+         </div>
+         </div>
+         </div>
+      </div>
+      <script data-cfasync="false" src="../../../../cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script src="js/bootstrap.min.js"></script>
+      <script src="js/page-transition.js"></script>
+      <script src="js/imagesloaded.pkgd.min.js"></script>
+      <script src="js/validator.js"></script>
+      <script src="js/jquery.shuffle.min.js"></script>
+      <script src="js/masonry.pkgd.min.js"></script>
+      <script src="js/owl.carousel.min.js"></script>
+      <script src="js/jquery.magnific-popup.min.js"></script>
+      <script src="js/jquery.hoverdir.js"></script>
+      <script src="js/main.js"></script>
+      <script>
+         function handleClickMenu() {
+            var element = document.getElementsByClassName("site-main")[0];
+            var isHaveClass = document.getElementsByClassName('add-menu-custom');
+            if(isHaveClass.length > 0){
+               element.classList.remove("add-menu-custom");
+            } else {
+               element.classList.add("add-menu-custom");
+            }
+            
+         }
+         
+         
+      </script>
+      <script src="preview/lmpixels-demo-panel.js"></script>
+   </body>
+</html>

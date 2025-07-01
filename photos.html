@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bộ Sưu Tập Hình Ảnh</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', sans-serif;
+      background: #f9f9f9;
+      padding: 1rem;
+      color: #333;
+    }
+
+    h2 {
+      text-align: center;
+      margin-bottom: 1.5rem;
+      font-weight: 600;
+      color: #444;
+    }
+
+    .filter-buttons {
+      text-align: center;
+      margin-bottom: 1.5rem;
+      display: flex;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .filter-buttons button {
+      background-color: #ffffff;
+      border: 1px solid #ccc;
+      border-radius: 20px;
+      padding: 10px 20px;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+    }
+
+    .filter-buttons button:hover,
+    .filter-buttons button.active {
+      background-color: #66CC99;
+      color: white;
+      border-color: #66CC99;
+    }
+
+    .company-section {
+      display: none;
+      margin-bottom: 2rem;
+    }
+
+    .company-title {
+      font-size: 1.2rem;
+      margin: 1rem 0 0.5rem;
+      font-weight: 600;
+      color: #555;
+    }
+
+    .portfolio-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+      gap: 10px;
+    }
+
+    .item {
+      border-radius: 8px;
+      overflow: hidden;
+      cursor: pointer;
+      background: white;
+      box-shadow: 0 1px 5px rgba(0,0,0,0.05);
+      transition: transform 0.2s ease;
+    }
+
+    .item img {
+      width: 100%;
+      display: block;
+      height: auto;
+      transition: transform 0.3s;
+    }
+
+    .item:hover img {
+      transform: scale(1.05);
+    }
+
+    /* Lightbox popup */
+    .lightbox {
+      display: none;
+      position: fixed;
+      z-index: 1000;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0,0,0,0.8);
+      align-items: center;
+      justify-content: center;
+    }
+
+    .lightbox-content {
+      max-width: 90%;
+      max-height: 90%;
+      border-radius: 10px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+    }
+
+    .lightbox .close {
+      position: absolute;
+      top: 20px;
+      right: 30px;
+      font-size: 35px;
+      color: white;
+      cursor: pointer;
+    }
+
+    @media (max-width: 600px) {
+      .filter-buttons button {
+        flex: 1 1 45%;
+        font-size: 0.95rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="filter-buttons">
+    <button class="active" onclick="filterCompany('all', this)">All</button>
+    <button onclick="filterCompany('evizi', this)">Evizi</button>
+    <button onclick="filterCompany('fujinet', this)">Fujinet</button>
+    <button onclick="filterCompany('ms', this)">Auvenir</button>
+  </div>
+
+  <div class="company-section evizi">
+    <div class="company-title">Evizi</div>
+    <div class="portfolio-grid">
+      <div class="item"><img src="images/company/evizi/ev1.jpg" alt="Evizi 1"></div>
+      <div class="item"><img src="images/company/evizi/ev2.jpg" alt="Evizi 2"></div>
+    </div>
+  </div>
+
+  <div class="company-section fujinet">
+    <div class="company-title">Fujinet</div>
+    <div class="portfolio-grid">
+      <div class="item"><img src="images/company/fj/fj1.jpg" alt="Fujinet 1"></div>
+      <div class="item"><img src="images/company/fj/fj2.jpg" alt="Fujinet 2"></div>
+      <div class="item"><img src="images/company/fj/fj3.jpg" alt="Fujinet 3"></div>
+      <div class="item"><img src="images/company/fj/fj4.jpg" alt="Fujinet 4"></div>
+      <div class="item"><img src="images/company/fj/fj5.jpg" alt="Fujinet 5"></div>
+    </div>
+  </div>
+
+  <div class="company-section ms">
+    <div class="company-title">Auvenir</div>
+    <div class="portfolio-grid">
+      <div class="item"><img src="images/company/ms/st5.jpg" alt="MS 5"></div>
+      <div class="item"><img src="images/company/ms/st6.JPG" alt="MS 6"></div>
+      <div class="item"><img src="images/company/ms/st7.JPG" alt="MS 7"></div>
+    </div>
+  </div>
+
+  <!-- Lightbox popup -->
+  <div id="lightbox" class="lightbox">
+    <span class="close" onclick="closeLightbox()">&times;</span>
+    <img id="lightbox-img" class="lightbox-content" src="" alt="Zoomed Image">
+  </div>
+
+  <script>
+    function filterCompany(company, btn) {
+      document.querySelectorAll('.company-section').forEach(section => {
+        section.style.display = (company === 'all' || section.classList.contains(company)) ? 'block' : 'none';
+      });
+
+      document.querySelectorAll('.filter-buttons button').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+    }
+
+    document.querySelectorAll('.item img').forEach(img => {
+      img.addEventListener('click', () => {
+        document.getElementById('lightbox-img').src = img.src;
+        document.getElementById('lightbox').style.display = 'flex';
+      });
+    });
+
+    function closeLightbox() {
+      document.getElementById('lightbox').style.display = 'none';
+    }
+
+    // Đóng lightbox khi bấm ra ngoài ảnh
+    window.addEventListener('click', (e) => {
+      const lightbox = document.getElementById('lightbox');
+      const img = document.getElementById('lightbox-img');
+      if (e.target === lightbox) {
+        lightbox.style.display = 'none';
+      }
+    });
+
+    // Mặc định hiển thị tất cả
+    filterCompany('all', document.querySelector('.filter-buttons button'));
+  </script>
+
+</body>
+</html>

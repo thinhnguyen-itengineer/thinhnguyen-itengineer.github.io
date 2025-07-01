@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Liên hệ</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: white;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      margin: 0;
+      padding: 20px;
+    }
+
+    .contact-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 20px;
+      width: 100%;
+      max-width: 600px;
+    }
+
+    .contact-item {
+      position: relative;
+      background: white;
+      border-radius: 20px;
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
+      text-align: center;
+      cursor: pointer;
+      transition: transform 0.3s, background 0.3s, box-shadow 0.3s;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .contact-item:hover {
+      transform: scale(1.03);
+      background: #dbe9ff;
+      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.18);
+    }
+
+    .contact-item img {
+      width: 80px;
+      height: 80px;
+      margin-bottom: 10px;
+    }
+
+    .contact-text {
+      position: absolute;
+      bottom: 15px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 90%;
+      background: rgba(0, 0, 0, 0.75);
+      color: #fff;
+      padding: 8px 12px;
+      font-size: 14px;
+      border-radius: 10px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s ease;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .contact-item:hover .contact-text {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .copied-msg {
+      position: absolute;
+      top: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #4caf50;
+      color: white;
+      padding: 6px 12px;
+      font-size: 13px;
+      border-radius: 10px;
+      display: none;
+      animation: fadeOut 1.5s forwards;
+      z-index: 2;
+    }
+
+    @keyframes fadeOut {
+      0% { opacity: 1; }
+      80% { opacity: 1; }
+      100% { opacity: 0; }
+    }
+
+    @media (max-width: 480px) {
+      .contact-item img {
+        width: 60px;
+        height: 60px;
+      }
+
+      .contact-text {
+        font-size: 12px;
+        padding: 6px 10px;
+      }
+
+      .copied-msg {
+        font-size: 12px;
+        padding: 4px 10px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="contact-grid">
+    <div class="contact-item" onclick="copyText(this, 'https://www.facebook.com/profile.php?id=100088184670155')">
+      <img src="https://cdn-icons-png.flaticon.com/512/124/124010.png" alt="Facebook">
+      <div class="contact-text">https://www.facebook.com/profile.php?id=100088184670155</div>
+      <div class="copied-msg">Copied!</div>
+    </div>
+
+    <div class="contact-item" onclick="copyText(this, 'nguyenphucthinhdh15dt@gmail.com')">
+      <img src="https://cdn-icons-png.flaticon.com/512/732/732200.png" alt="Email">
+      <div class="contact-text">nguyenphucthinhdh15dt@gmail.com</div>
+      <div class="copied-msg">Copied!</div>
+    </div>
+
+    <div class="contact-item" onclick="copyText(this, '0377700492')">
+      <img src="https://cdn-icons-png.flaticon.com/512/455/455705.png" alt="Số điện thoại">
+      <div class="contact-text">0377700492</div>
+      <div class="copied-msg">Copied!</div>
+    </div>
+
+    <div class="contact-item" onclick="copyText(this, 'https://www.linkedin.com/in/th%E1%BB%8Bnh-nguy%E1%BB%85n-ph%C3%BAc-550481156/')">
+      <img src="https://cdn-icons-png.flaticon.com/512/174/174857.png" alt="LinkedIn">
+      <div class="contact-text">https://www.linkedin.com/in/th%E1%BB%8Bnh-nguy%E1%BB%85n-ph%C3%BAc-550481156/</div>
+      <div class="copied-msg">Copied!</div>
+    </div>
+  </div>
+
+  <script>
+    function copyText(el, text) {
+      navigator.clipboard.writeText(text).then(() => {
+        const msg = el.querySelector('.copied-msg');
+        msg.style.display = 'block';
+        setTimeout(() => {
+          msg.style.display = 'none';
+        }, 1500);
+      });
+    }
+  </script>
+</body>
+</html>
