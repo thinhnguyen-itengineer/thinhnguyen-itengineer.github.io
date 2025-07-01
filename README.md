@@ -1,16 +1,14 @@
-## Hi there 👋
+# Hi 👋 I'm Thinh Nguyen
 
-<!--
-**thinhnguyen-itengineer/thinhnguyen-itengineer** is a ✨ _special_ ✨ repository because its `README.md` (this file) appears on your GitHub profile.
+🚀 Senior Software Engineer with 6+ years experience  
+🎯 Expert in .NET, ReactJS, SQL Server, Power BI  
+📍 Based in Vietnam
 
-Here are some ideas to get you started:
+## 🔥 Tech Stack
+- Backend: C#, ASP.NET Core, Entity Framework
+- Frontend: ReactJS, Tailwind CSS
+- Database: SQL Server, PostgreSQL
+- Others: Redis, Power BI Integration
 
-- 🔭 I’m currently working on ...
-- 🌱 I’m currently learning ...
-- 👯 I’m looking to collaborate on ...
-- 🤔 I’m looking for help with ...
-- 💬 Ask me about ...
-- 📫 How to reach me: ...
-- 😄 Pronouns: ...
-- ⚡ Fun fact: ...
--->
+## 📈 GitHub Stats
+![Thinh's GitHub stats](https://github-readme-stats.vercel.app/api?username=thinhnguyen-itengineer&show_icons=true&theme=radical)
