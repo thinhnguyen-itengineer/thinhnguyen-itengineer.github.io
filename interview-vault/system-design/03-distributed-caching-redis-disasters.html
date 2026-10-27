@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>[System Design #3] Kiến trúc Redis Cache chịu tải cao: Xử lý 3 thảm họa Cache Stampede, Penetration, Avalanche & Đồng bộ DB | [System Design #3] High-Throughput Redis Caching: Solving Cache Stampede, Penetration, Avalanche & Cache-DB Consistency</title>
+  <style>
+    :root {
+      --bg: #f8fafc;
+      --card: #ffffff;
+      --text: #0f172a;
+      --muted: #475569;
+      --border: #e2e8f0;
+      --primary: #006194;
+    }
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      max-width: 980px;
+      margin: 0 auto;
+      padding: 24px 16px 60px;
+      line-height: 1.65;
+    }
+    .standalone-toolbar {
+      position: sticky;
+      top: 12px;
+      z-index: 50;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+      background: rgba(255, 255, 255, 0.92);
+      backdrop-filter: blur(10px);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 10px 16px;
+      margin-bottom: 24px;
+      box-shadow: 0 4px 20px rgba(15, 23, 42, 0.06);
+    }
+    .lang-btn {
+      border: 1px solid var(--border);
+      background: #f1f5f9;
+      color: #334155;
+      padding: 6px 14px;
+      border-radius: 10px;
+      font-weight: 600;
+      font-size: 13px;
+      cursor: pointer;
+    }
+    .lang-btn.active {
+      background: var(--primary);
+      color: #fff;
+      border-color: var(--primary);
+    }
+    body[data-vault-lang="vi"] .lang-en { display: none !important; }
+    body[data-vault-lang="en"] .lang-vi { display: none !important; }
+    body[data-vault-lang="both"] div.lang-en,
+    body[data-vault-lang="both"] p.lang-en {
+      border-top: 1px dashed rgba(140, 160, 190, 0.4);
+      padding-top: 8px;
+      margin-top: 8px;
+    }
+    .sd-source-box {
+      border-radius: 16px;
+      border: 1px solid rgba(0, 97, 148, 0.3);
+      background: linear-gradient(135deg, rgba(0, 97, 148, 0.08), rgba(16, 185, 129, 0.06));
+      padding: 16px 20px;
+      margin-bottom: 20px;
+    }
+    .sd-analogy-box {
+      border-radius: 16px;
+      border-left: 4px solid #f59e0b;
+      background: rgba(245, 158, 11, 0.09);
+      padding: 16px 20px;
+      margin: 16px 0;
+    }
+    .sd-diagram-box {
+      border-radius: 16px;
+      border: 1px solid rgba(140, 160, 190, 0.35);
+      background: #ffffff;
+      padding: 20px;
+      margin: 20px 0;
+      overflow-x: auto;
+    }
+    .sd-takeaway-box {
+      border-radius: 16px;
+      border-left: 4px solid #10b981;
+      background: rgba(16, 185, 129, 0.09);
+      padding: 16px 20px;
+      margin: 16px 0;
+    }
+    table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 14px; }
+    th, td { border: 1px solid #cbd5e1; padding: 10px 12px; text-align: left; }
+    th { background: #f1f5f9; font-weight: 700; }
+    pre { background: #0f172a; color: #f8fafc; padding: 16px; border-radius: 12px; overflow-x: auto; font-size: 13px; }
+    code { font-family: Consolas, 'JetBrains Mono', monospace; }
+  </style>
+</head>
+<body data-vault-lang="vi">
+  <div class="standalone-toolbar">
+    <div style="font-weight: 700; font-size: 14px; color: #006194;">🏛️ System Design — Vietnam Tech Interview Vault</div>
+    <div style="display: flex; gap: 6px;">
+      <button class="lang-btn active" onclick="switchLang('vi', this)">🇻🇳 Tiếng Việt</button>
+      <button class="lang-btn" onclick="switchLang('en', this)">🇬🇧 English</button>
+      <button class="lang-btn" onclick="switchLang('both', this)">⚡ Song ngữ (VI + EN)</button>
+    </div>
+  </div>
+  <h1 class="lang-vi">[System Design #3] Kiến trúc Redis Cache chịu tải cao: Xử lý 3 thảm họa Cache Stampede, Penetration, Avalanche & Đồng bộ DB</h1>
+  <h1 class="lang-en">[System Design #3] High-Throughput Redis Caching: Solving Cache Stampede, Penetration, Avalanche & Cache-DB Consistency</h1>
+  <div class="sd-source-box">
+  <div class="lang-vi">
+    <strong>📌 Nguồn câu hỏi &amp; Độ tin cậy (Verified Vietnam Tech Interviews):</strong>
+    <ul>
+      <li><strong>Các công ty thường hỏi tại Việt Nam:</strong> <strong>VNG (Zalo)</strong>, <strong>Grab Vietnam</strong>, <strong>Thế Giới Di Động (MWG / Bách Hóa Xanh)</strong>, <strong>FPT Software</strong>, <strong>Chợ Tốt (Carousell)</strong>.</li>
+      <li><strong>Vòng phỏng vấn:</strong> Vòng 2 — <em>System Design &amp; High-Traffic Optimization (Senior Backend Engineer)</em>.</li>
+      <li><strong>Trích xuất nguồn thực tế:</strong>
+        <ul>
+          <li><em>Glassdoor Vietnam — VNG &amp; Grab Backend Interview:</em> "Phân biệt rõ 3 sự cố kinh điển của Redis Cache: Cache Stampede (Breakdown), Cache Penetration và Cache Avalanche. Hãy vẽ sơ đồ và nêu cách xử lý từng trường hợp trong hệ thống thực tế."</li>
+        </ul>
+      </li>
+    </ul>
+  </div>
+  <div class="lang-en">
+    <strong>📌 Verified Interview Source &amp; Credibility (Vietnam Tech Market):</strong>
+    <ul>
+      <li><strong>Frequently Asked By in Vietnam:</strong> <strong>VNG (Zalo)</strong>, <strong>Grab Vietnam</strong>, <strong>Mobile World Group (MWG)</strong>, <strong>FPT Software</strong>, <strong>Cho Tot (Carousell)</strong>.</li>
+      <li><strong>Interview Round:</strong> Round 2 — <em>System Design &amp; High-Traffic Optimization (Senior Backend Engineer)</em>.</li>
+      <li><strong>Documented Sources:</strong>
+        <ul>
+          <li><em>Glassdoor Vietnam — VNG &amp; Grab Backend Interview:</em> "Clearly distinguish the 3 classic Redis failures: Cache Stampede (Breakdown), Cache Penetration, and Cache Avalanche. Draw the architecture and explain how you mitigate each in production."</li>
+        </ul>
+      </li>
+    </ul>
+  </div>
+</div>
+
+<div class="sd-analogy-box">
+  <div class="lang-vi">
+    <strong>💡 Ví dụ hình dung đời thực cho 3 Thảm họa Cache (Nhớ ngay lập tức không bao giờ nhầm):</strong>
+    <ol>
+      <li>🦬 <strong>Cache Stampede / Breakdown (1 Key siêu "Hot" vừa hết hạn):</strong>
+        Giống như <strong>Bảng niêm yết điểm thi Đại học</strong> dán ngoài cổng trường vừa bị gió thổi rách đúng lúc <strong>10.000 phụ huynh</strong> đang đứng xem ➔ Cả 10.000 người đồng loạt xô đổ cửa phòng Hiệu trưởng (SQL Database) chỉ để hỏi cùng 1 bảng điểm đó!</li>
+      <li>👻 <strong>Cache Penetration (Đâm xuyên vì hỏi ID KHÔNG TỒN TẠI, ví dụ <code>id = -999</code>):</strong>
+        Giống như kẻ xấu thuê 10.000 người đến hiệu thuốc hỏi mua <em>"Thuốc trường sinh bất tử"</em>. Cô nhân viên tìm trên kệ ngoài quầy (Redis Cache) không thấy, lại phải chạy vào tận kho tổng (SQL DB) lục tung lên cũng không có. Vì không có nên cô cũng chẳng cất lên kệ ngoài ➔ Người thứ 2, thứ 10.000 hỏi câu y hệt lại bắt cô chạy vào kho tổng!</li>
+      <li>🏔️ <strong>Cache Avalanche (Tuyết lở — 100.000 Key cùng hết hạn đúng 12h đêm):</strong>
+        Giống như siêu thị hẹn giờ <strong>tất cả 100.000 mặt hàng trên kệ đều hết hạn đúng 00:00:00</strong>. Đúng 00:00:01, toàn bộ khách hàng hỏi mua bất kỳ món gì cũng phải chờ nhân viên chạy vào kho tổng lấy lại từ đầu!</li>
+    </ol>
+  </div>
+  <div class="lang-en">
+    <strong>💡 Real-Life Mental Analogies for the 3 Cache Disasters (Zero Confusion):</strong>
+    <ol>
+      <li>🦬 <strong>Cache Stampede / Breakdown (1 Ultra-Hot Key Expires):</strong>
+        Like the <strong>University Exam Bulletin Board</strong> at the front gate falling down right when <strong>10,000 parents</strong> are looking at it ➔ All 10,000 parents simultaneously storm the Principal's office (SQL DB) asking for the exact same score sheet!</li>
+      <li>👻 <strong>Cache Penetration (Querying Non-Existent Data, e.g., <code>id = -999</code>):</strong>
+        Like an attacker sending 10,000 people to a pharmacy asking for an <em>"Elixir of Immortality"</em>. It's not on the front shelf (Redis), so the clerk runs to the back warehouse (SQL DB) and finds nothing. Because nothing was found, nothing is placed on the front shelf ➔ All 10,000 requests hit the warehouse directly!</li>
+      <li>🏔️ <strong>Cache Avalanche (100,000 Keys Expire at the Exact Same Second):</strong>
+        Like setting all 100,000 products on the front shelves to expire at midnight <code>00:00:00</code> sharp. At <code>00:00:01</code>, every single customer request misses the shelf and floods the warehouse!</li>
+    </ol>
+  </div>
+</div>
+
+<h2 class="lang-vi">1. Hình vẽ Hệ thống: 3 Thảm họa Cache &amp; Cơ chế Phòng thủ Trực quan</h2>
+<h2 class="lang-en">1. Visual Architecture Diagram: The 3 Cache Disasters &amp; Their Defenses</h2>
+
+<div class="sd-diagram-box">
+  <svg viewBox="0 0 920 340" style="width:100%; min-width:720px; height:auto; font-family:system-ui,sans-serif;">
+    <!-- Card 1: Stampede -->
+    <rect x="12" y="15" width="288" height="310" rx="14" fill="#fffbeb" stroke="#f59e0b" stroke-width="2"/>
+    <rect x="24" y="28" width="264" height="34" rx="8" fill="#f59e0b"/>
+    <text x="36" y="50" fill="#ffffff" font-size="13" font-weight="bold">🦬 1. CACHE STAMPEDE (HOT KEY)</text>
+    <text x="26" y="84" fill="#78350f" font-size="11.5" font-weight="bold">Hiện tượng:</text>
+    <text x="26" y="102" fill="#1e293b" font-size="11">1 key siêu hot (trang chủ / iPhone) hết</text>
+    <text x="26" y="118" fill="#1e293b" font-size="11">hạn ➔ 10,000 req cùng trượt Cache.</text>
+    <line x1="26" y1="132" x2="274" y2="132" stroke="#fcd34d" stroke-width="1.5"/>
+    <text x="26" y="154" fill="#065f46" font-size="11.5" font-weight="bold">✅ Giải pháp chuẩn (.NET 8/9):</text>
+    <rect x="26" y="166" width="252" height="62" rx="8" fill="#ffffff" stroke="#d97706"/>
+    <text x="36" y="186" fill="#0f172a" font-size="11" font-weight="bold">① Distributed Mutex Lock (SETNX)</text>
+    <text x="36" y="203" fill="#475569" font-size="10.5">Chỉ 1 luồng vào SQL lấy dữ liệu, 9,999</text>
+    <text x="36" y="218" fill="#475569" font-size="10.5">luồng còn lại chờ 30ms đọc từ Cache.</text>
+    <rect x="26" y="238" width="252" height="72" rx="8" fill="#ecfdf5" stroke="#10b981"/>
+    <text x="36" y="258" fill="#065f46" font-size="11" font-weight="bold">② Logical Expiration / HybridCache</text>
+    <text x="36" y="275" fill="#047857" font-size="10.5">Không đặt TTL cứng. Khi gần hết hạn,</text>
+    <text x="36" y="290" fill="#047857" font-size="10.5">trả ngay bản cũ &amp; chạy 1 luồng ngầm</text>
+    <text x="36" y="304" fill="#047857" font-size="10.5">làm mới Cache (Zero-Wait).</text>
+
+    <!-- Card 2: Penetration -->
+    <rect x="316" y="15" width="288" height="310" rx="14" fill="#fef2f2" stroke="#ef4444" stroke-width="2"/>
+    <rect x="328" y="28" width="264" height="34" rx="8" fill="#ef4444"/>
+    <text x="340" y="50" fill="#ffffff" font-size="13" font-weight="bold">👻 2. CACHE PENETRATION (ID RÁC)</text>
+    <text x="330" y="84" fill="#7f1d1d" font-size="11.5" font-weight="bold">Hiện tượng:</text>
+    <text x="330" y="102" fill="#1e293b" font-size="11">Hỏi ID không tồn tại (id = -1, GUID rác).</text>
+    <text x="330" y="118" fill="#1e293b" font-size="11">Miss Redis ➔ Đâm thẳng xuống SQL DB.</text>
+    <line x1="330" y1="132" x2="578" y2="132" stroke="#fca5a5" stroke-width="1.5"/>
+    <text x="330" y="154" fill="#065f46" font-size="11.5" font-weight="bold">✅ Giải pháp chuẩn:</text>
+    <rect x="330" y="166" width="252" height="62" rx="8" fill="#ffffff" stroke="#ef4444"/>
+    <text x="340" y="186" fill="#0f172a" font-size="11" font-weight="bold">① Bloom Filter (Gác cổng bằng Bit)</text>
+    <text x="340" y="203" fill="#475569" font-size="10.5">10 triệu ID chỉ tốn ~12MB RAM. Nếu</text>
+    <text x="340" y="218" fill="#475569" font-size="10.5">Bloom báo "Chắc chắn ko có" ➔ Chặn ngay!</text>
+    <rect x="330" y="238" width="252" height="72" rx="8" fill="#ecfdf5" stroke="#10b981"/>
+    <text x="340" y="258" fill="#065f46" font-size="11" font-weight="bold">② Cache Null Value (TTL ngắn 2p)</text>
+    <text x="340" y="275" fill="#047857" font-size="10.5">Nếu SQL trả về null, lưu luôn chuỗi</text>
+    <text x="340" y="290" fill="#047857" font-size="10.5">"__NULL__" vào Redis với TTL = 120s</text>
+    <text x="340" y="304" fill="#047857" font-size="10.5">để 9,999 req sau không chạm vào SQL.</text>
+
+    <!-- Card 3: Avalanche -->
+    <rect x="620" y="15" width="288" height="310" rx="14" fill="#f0f9ff" stroke="#0284c7" stroke-width="2"/>
+    <rect x="632" y="28" width="264" height="34" rx="8" fill="#0284c7"/>
+    <text x="644" y="50" fill="#ffffff" font-size="13" font-weight="bold">🏔️ 3. CACHE AVALANCHE (TUYẾT LỞ)</text>
+    <text x="634" y="84" fill="#0c4a6e" font-size="11.5" font-weight="bold">Hiện tượng:</text>
+    <text x="634" y="102" fill="#1e293b" font-size="11">100,000 key nạp lúc 0h cùng đặt TTL=1h</text>
+    <text x="634" y="118" fill="#1e293b" font-size="11">➔ Đúng 1h00 sáng đồng loạt hết hạn!</text>
+    <line x1="634" y1="132" x2="882" y2="132" stroke="#7dd3fc" stroke-width="1.5"/>
+    <text x="634" y="154" fill="#065f46" font-size="11.5" font-weight="bold">✅ Giải pháp chuẩn:</text>
+    <rect x="634" y="166" width="252" height="62" rx="8" fill="#ffffff" stroke="#0284c7"/>
+    <text x="644" y="186" fill="#0f172a" font-size="11" font-weight="bold">① TTL Jitter (Cộng số ngẫu nhiên)</text>
+    <text x="644" y="203" fill="#475569" font-size="10.5">TTL = 60 phút + Random(1..15 phút).</text>
+    <text x="644" y="218" fill="#475569" font-size="10.5">Trải đều thời điểm hết hạn ra 15 phút.</text>
+    <rect x="634" y="238" width="252" height="72" rx="8" fill="#ecfdf5" stroke="#10b981"/>
+    <text x="644" y="258" fill="#065f46" font-size="11" font-weight="bold">② Multi-Tier L1 + L2 Cache</text>
+    <text x="644" y="275" fill="#047857" font-size="10.5">L1: In-Memory (IMemoryCache 15 giây)</text>
+    <text x="644" y="290" fill="#047857" font-size="10.5">L2: Redis Cluster (Sentinel / HA)</text>
+    <text x="644" y="304" fill="#047857" font-size="10.5">Circuit Breaker bảo vệ SQL khi Redis lỗi.</text>
+  </svg>
+</div>
+
+<h2 class="lang-vi">2. Câu hỏi Kinh điển: Khi sửa dữ liệu, nên "Cập nhật DB trước rồi Xóa Cache" hay ngược lại?</h2>
+<h2 class="lang-en">2. Classic Question: On Write, Should You "Update DB Then Delete Cache" or Vice Versa?</h2>
+
+<div class="lang-vi">
+  <p>Nhiều ứng viên trả lời sai là <em>"Xóa Cache trước rồi mới Update DB"</em> hoặc <em>"Update cả DB lẫn Cache"</em>. Hãy nhìn ví dụ thực tế dưới đây để thấy tại sao <strong>chuẩn công nghiệp bắt buộc phải là: (1) Update SQL Database trước ➔ (2) Xóa (Invalidate) Redis Cache sau</strong>:</p>
+  <ul>
+    <li>❌ <strong>Nếu Update Cache thay vì Xóa Cache:</strong> Nếu 2 luồng A (sửa giá = 100k) và B (sửa giá = 200k) chạy song song: Trong SQL, A ghi trước B ghi sau (SQL = 200k), nhưng do mạng trễ nên B lại ghi Redis trước rồi A ghi đè Redis sau (Redis = 100k) ➔ <strong>Lệch dữ liệu vĩnh viễn cho tới khi hết TTL!</strong></li>
+    <li>✅ <strong>Chuẩn Cache-Aside:</strong> Cập nhật SQL thành công ➔ Gọi <code>DEL product:123</code> trên Redis (Nếu muốn an toàn tuyệt đối với các hệ thống Read cực lớn, dùng thêm <strong>Delayed Double Delete</strong>: Xóa Cache ➔ Đợi 300ms ➔ Xóa lại lần nữa hoặc dùng Debezium CDC lắng nghe binlog SQL để xóa Cache).</li>
+  </ul>
+</div>
+<div class="lang-en">
+  <p>Why is the industry standard for <strong>Cache-Aside Pattern</strong> strictly: <strong>(1) Update SQL Database First ➔ (2) Delete (Invalidate) Redis Key Second</strong>?</p>
+  <ul>
+    <li>❌ <strong>Why NOT Update Cache directly?</strong> If Thread A (price=100) and Thread B (price=200) run concurrently: A updates SQL first, B updates SQL second (SQL=200), but due to network jitter B updates Redis first and A overwrites Redis second (Redis=100) ➔ <strong>Permanent stale cache until TTL expires!</strong></li>
+    <li>✅ <strong>Standard Cache-Aside:</strong> Commit to SQL first ➔ <code>DEL product:123</code> in Redis (with optional <strong>Delayed Double Delete</strong> or CDC binlog invalidation).</li>
+  </ul>
+</div>
+
+<pre><code>// Chống Cache Stampede + Penetration + Avalanche trong .NET 8
+public async Task&lt;ProductDto?&gt; GetProductByIdAsync(long productId, CancellationToken ct)
+{
+    // 1. Chặn ngay ID bất hợp lệ (Chống Cache Penetration bước 1)
+    if (productId &lt;= 0) return null;
+
+    string cacheKey = $"product:detail:{productId}";
+    var db = _redis.GetDatabase();
+
+    // 2. Đọc từ Redis
+    var cachedJson = await db.StringGetAsync(cacheKey);
+    if (cachedJson.HasValue)
+    {
+        if (cachedJson == "__NULL__") return null; // Hit Null Cache!
+        return JsonSerializer.Deserialize&lt;ProductDto&gt;(cachedJson!);
+    }
+
+    // 3. Cache Miss ➔ Dùng Semaphore / Distributed Lock chống Cache Stampede
+    string lockKey = $"lock:product:{productId}";
+    string lockToken = Guid.NewGuid().ToString("N");
+
+    if (await db.StringSetAsync(lockKey, lockToken, TimeSpan.FromSeconds(5), When.NotExists))
+    {
+        try
+        {
+            var product = await _sqlRepo.FindByIdAsync(productId, ct);
+            if (product is null)
+            {
+                // Lưu "__NULL__" với TTL ngắn 2 phút (Chống Penetration)
+                await db.StringSetAsync(cacheKey, "__NULL__", TimeSpan.FromMinutes(2));
+                return null;
+            }
+
+            // Cộng TTL Jitter ngẫu nhiên 1..15 phút (Chống Cache Avalanche)
+            var jitter = TimeSpan.FromMinutes(Random.Shared.Next(1, 15));
+            await db.StringSetAsync(cacheKey, JsonSerializer.Serialize(product), TimeSpan.FromMinutes(60) + jitter);
+            return product;
+        }
+        finally
+        {
+            await ReleaseLockSafelyAsync(db, lockKey, lockToken);
+        }
+    }
+
+    // Các luồng khác không lấy được lock: chờ 40ms rồi đọc lại từ Cache
+    await Task.Delay(40, ct);
+    return await GetProductByIdAsync(productId, ct);
+}</code></pre>
+  <script>
+    function switchLang(lang, btn) {
+      document.body.setAttribute('data-vault-lang', lang);
+      document.querySelectorAll('.lang-btn').forEach(b => b.classList.remove('active'));
+      if (btn) btn.classList.add('active');
+    }
+  </script>
+</body>
+</html>

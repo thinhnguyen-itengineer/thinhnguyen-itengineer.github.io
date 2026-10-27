@@ -1,0 +1,760 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>[System Design #1] Thiết kế Hệ thống Flash Sale & Săn Vé 100.000 RPS (Chống Bán lố Overselling, Tránh Sập DB & Hoàn kho Tự động) | [System Design #1] Designing an Ultra High-Concurrency Flash Sale & Ticketing System at 100k RPS (Zero Overselling, DB Survival & Cart Expiry)</title>
+  <style>
+    :root {
+      --bg: #f8fafc;
+      --card: #ffffff;
+      --text: #0f172a;
+      --muted: #475569;
+      --border: #e2e8f0;
+      --primary: #006194;
+    }
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      max-width: 980px;
+      margin: 0 auto;
+      padding: 24px 16px 60px;
+      line-height: 1.65;
+    }
+    .standalone-toolbar {
+      position: sticky;
+      top: 12px;
+      z-index: 50;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+      background: rgba(255, 255, 255, 0.92);
+      backdrop-filter: blur(10px);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 10px 16px;
+      margin-bottom: 24px;
+      box-shadow: 0 4px 20px rgba(15, 23, 42, 0.06);
+    }
+    .lang-btn {
+      border: 1px solid var(--border);
+      background: #f1f5f9;
+      color: #334155;
+      padding: 6px 14px;
+      border-radius: 10px;
+      font-weight: 600;
+      font-size: 13px;
+      cursor: pointer;
+    }
+    .lang-btn.active {
+      background: var(--primary);
+      color: #fff;
+      border-color: var(--primary);
+    }
+    body[data-vault-lang="vi"] .lang-en { display: none !important; }
+    body[data-vault-lang="en"] .lang-vi { display: none !important; }
+    body[data-vault-lang="both"] div.lang-en,
+    body[data-vault-lang="both"] p.lang-en {
+      border-top: 1px dashed rgba(140, 160, 190, 0.4);
+      padding-top: 8px;
+      margin-top: 8px;
+    }
+    .sd-source-box {
+      border-radius: 16px;
+      border: 1px solid rgba(0, 97, 148, 0.3);
+      background: linear-gradient(135deg, rgba(0, 97, 148, 0.08), rgba(16, 185, 129, 0.06));
+      padding: 16px 20px;
+      margin-bottom: 20px;
+    }
+    .sd-analogy-box {
+      border-radius: 16px;
+      border-left: 4px solid #f59e0b;
+      background: rgba(245, 158, 11, 0.09);
+      padding: 16px 20px;
+      margin: 16px 0;
+    }
+    .sd-diagram-box {
+      border-radius: 16px;
+      border: 1px solid rgba(140, 160, 190, 0.35);
+      background: #ffffff;
+      padding: 20px;
+      margin: 20px 0;
+      overflow-x: auto;
+    }
+    .sd-takeaway-box {
+      border-radius: 16px;
+      border-left: 4px solid #10b981;
+      background: rgba(16, 185, 129, 0.09);
+      padding: 16px 20px;
+      margin: 16px 0;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 16px 0;
+      font-size: 13.5px;
+    }
+    th, td {
+      border: 1px solid var(--border);
+      padding: 10px 14px;
+      text-align: left;
+    }
+    th {
+      background: #f1f5f9;
+      font-weight: 700;
+    }
+    pre {
+      background: #0f172a;
+      color: #f8fafc;
+      padding: 16px 20px;
+      border-radius: 12px;
+      overflow-x: auto;
+      font-size: 13px;
+      line-height: 1.6;
+    }
+    code {
+      font-family: 'JetBrains Mono', Consolas, monospace;
+    }
+  </style>
+</head>
+<body data-vault-lang="vi">
+  <div class="standalone-toolbar">
+    <div>
+      <span style="font-weight:700; color:var(--primary); font-size:15px;">Interview Prep Vault</span>
+      <span style="color:var(--muted); font-size:13px; margin-left:8px;">System Design Deep-Dive</span>
+    </div>
+    <div style="display:flex; gap:8px;">
+      <button type="button" class="lang-btn active" onclick="switchLang('vi', this)">🇻🇳 Tiếng Việt</button>
+      <button type="button" class="lang-btn" onclick="switchLang('en', this)">🇬🇧 English</button>
+      <button type="button" class="lang-btn" onclick="switchLang('both', this)">⚡ Song ngữ</button>
+    </div>
+  </div>
+
+  <h1 class="lang-vi" style="font-size:24px; font-weight:800; line-height:1.35; margin-bottom:8px;">
+    [System Design #1] Thiết kế Hệ thống Flash Sale &amp; Săn Vé 100.000 RPS (Chống Bán lố Overselling, Tránh Sập DB &amp; Hoàn kho Tự động)
+  </h1>
+  <h1 class="lang-en" style="font-size:24px; font-weight:800; line-height:1.35; margin-bottom:8px;">
+    [System Design #1] Designing an Ultra High-Concurrency Flash Sale &amp; Ticketing System at 100k RPS (Zero Overselling, DB Survival &amp; Cart Expiry)
+  </h1>
+
+  
+<!-- ==========================================
+     SECTION 1: NGUỒN GỐC & DẪN CHỨNG THỰC TẾ VIỆT NAM
+     ========================================== -->
+<div class="sd-source-box">
+  <div class="lang-vi">
+    <strong>📌 Nguồn gốc phỏng vấn &amp; Dẫn chứng thực tiễn tại thị trường Công nghệ Việt Nam:</strong>
+    <ul>
+      <li><strong>Các công ty thường xuyên kiểm tra chủ đề này:</strong> 
+        <strong>Shopee Vietnam (Sea Group)</strong>, <strong>Tiki</strong>, <strong>VNG (ZaloPay &amp; Ticketbox)</strong>, <strong>Mobile World Group (Thế Giới Di Động - MWG)</strong>, <strong>Lazada VN</strong>, <strong>One Mount (VinShop)</strong>.
+      </li>
+      <li><strong>Vòng phỏng vấn:</strong> Round 2 &amp; Round 3 — <em>System Design &amp; High-Concurrency Architecture (Senior Backend Engineer / Tech Lead / Solution Architect)</em>.</li>
+      <li><strong>Dẫn chứng Case Study thực tế từ các sự kiện bùng nổ traffic tại Việt Nam:</strong>
+        <ul>
+          <li><em>Shopee Mega Sale 11.11 &amp; 12.12:</em> Deal iPhone 1k VND với hơn <strong>150.000 requests/giây</strong> dội vào cùng một tích tắc <code>00:00:00</code>. Từng xảy ra sự cố năm 2020 khi luồng Flash Sale đánh sập connection pool của database chung, khiến toàn bộ giỏ hàng của người mua hàng bình thường cũng bị xoay vòng (Timeout 504). Bài học xương máu: <strong>Phải cô lập hoàn toàn hạ tầng Flash Sale (Bulkhead Pattern)</strong>.</li>
+          <li><em>VNG Ticketbox (Concert "Anh Trai Say Hi" &amp; "Born Pink" BlackPink Hà Nội):</em> Hơn <strong>300.000 người xếp hàng đồng thời</strong> để giành 15.000 vé. Hệ thống bắt buộc phải tích hợp <strong>Phòng chờ ảo (Virtual Waiting Room)</strong> tại CDN Edge để xả van điều tiết (Traffic Throttling) thành từng đợt 2.000 người/phút, kết hợp Redis Lua trừ tồn kho nguyên tử.</li>
+          <li><em>Đề thi thực tế Shopee (Glassdoor Review 2023 - 2024):</em> "Thiết kế hệ thống bán 1.000 chiếc điện thoại giảm giá 90% cho 100.000 users tại đúng 12:00:00. Yêu cầu: Không bán lố (Zero Overselling), không sập DB, độ trễ phản hồi < 200ms, và xử lý triệt để việc khách giữ hàng nhưng không thanh toán."</li>
+        </ul>
+      </li>
+    </ul>
+  </div>
+  <div class="lang-en">
+    <strong>📌 Verified Interview Source &amp; Real-World Production Case Studies (Vietnam Market):</strong>
+    <ul>
+      <li><strong>Frequently Asked By:</strong> 
+        <strong>Shopee Vietnam (Sea Group)</strong>, <strong>Tiki</strong>, <strong>VNG (ZaloPay &amp; Ticketbox)</strong>, <strong>Mobile World Group (MWG)</strong>, <strong>Lazada VN</strong>, <strong>One Mount Group</strong>.
+      </li>
+      <li><strong>Interview Round:</strong> Round 2 &amp; 3 — <em>System Design &amp; High-Concurrency Architecture (Senior Backend Engineer / Tech Lead / Solution Architect)</em>.</li>
+      <li><strong>Documented Production Case Studies from Vietnam:</strong>
+        <ul>
+          <li><em>Shopee 11.11 &amp; 12.12 Mega Campaigns:</em> 1,000 VND iPhone deals generating over <strong>150,000 requests/sec</strong> at exactly <code>00:00:00</code>. In past incidents, high-concurrency contention drained the global DB connection pool, taking down normal e-commerce checkouts across the platform. Lesson learned: <strong>Strict infrastructure isolation via the Bulkhead Pattern</strong>.</li>
+          <li><em>VNG Ticketbox (Mega Concerts - "Anh Trai Say Hi" / BlackPink Hanoi):</em> Over <strong>300,000 concurrent fans</strong> competing for 15,000 tickets. System must deploy an Edge-based <strong>Virtual Waiting Room</strong> to throttle incoming traffic into batches of 2,000 users/min combined with Redis Atomic Lua reservation.</li>
+          <li><em>Real Shopee System Design Prompt:</em> "Design a flash sale for 1,000 phones sold to 100,000 concurrent users at 12:00:00. Constraints: Zero overselling, database survival, sub-200ms response time, and robust rollback for abandoned carts."</li>
+        </ul>
+      </li>
+    </ul>
+  </div>
+</div>
+
+<!-- ==========================================
+     SECTION 2: VÍ DỤ ĐỜI THƯỜNG TRỰC QUAN (ANALOGY)
+     ========================================== -->
+<div class="sd-analogy-box">
+  <div class="lang-vi">
+    <strong>💡 Ví dụ hình dung đời thực: 3 Cấp độ tổ chức bán 1.000 Vé VIP cho 100.000 Người</strong>
+    <p>Hãy tưởng tượng một sân khấu chỉ có đúng <strong>1.000 chiếc vé VIP</strong>, nhưng có <strong>100.000 người hâm mộ</strong> đứng chen lấn trước cổng lúc 12h00:</p>
+    <ul>
+      <li>❌ <strong>Cấp độ 1 — Ngây thơ (Mở toang cổng rào, 100.000 người ùa vào bàn cô kế toán ghi sổ giấy):</strong>
+        <p>100.000 người cùng lao vào phòng kế toán (SQL Database). Cô kế toán vừa nhìn sổ thấy <em>"Còn 1 vé cuối cùng"</em>, chưa kịp đặt bút gạch thì 50 người cùng lúc cũng nhìn thấy và đồng thanh hét: <em>"Tôi lấy!"</em>. Hậu quả:</p>
+        <ol>
+          <li><strong>Bán lố (Overselling):</strong> 1 vé bị bán cho 50 người, kho âm nặng, công ty bị kiện cáo bồi thường.</li>
+          <li><strong>Sập phòng (Database Crash):</strong> Nếu cô kế toán khóa trái cửa để phục vụ từng người một (Database Exclusive Row Lock), 99.950 người ngoài hành lang xô đẩy làm sập cả tòa nhà (Nghẽn Connection Pool, Timeout 504 toàn trang web).</li>
+        </ol>
+      </li>
+      <li>⚠️ <strong>Cấp độ 2 — Khá hơn nhưng vẫn chết (Thuê 50 bảo vệ đứng giữ cửa — Distributed Lock / RedLock):</strong>
+        <p>Mỗi lần có khách tới, bảo vệ gọi bộ đàm hỏi nhau xem ai được quyền vào. 100.000 người gọi bộ đàm cùng lúc khiến mạng bộ đàm tê liệt (Lock Contention). Người mua phải đứng chờ 30 giây mới biết mình trượt, khách hàng bức xúc.</p>
+      </li>
+      <li>✅ <strong>Cấp độ 3 — Chuẩn Enterprise (Máy bấm số điện tử tự động ngoài cổng + Hành lang xếp hàng êm ả):</strong>
+        <p>Ban tổ chức không bao giờ cho 100.000 người chạm vào phòng kế toán. Họ đặt một <strong>hệ thống máy bấm số tự động cực nhanh tại cổng ngoài (Redis RAM xử lý đơn luồng 150.000 lượt/giây)</strong>:</p>
+        <ul>
+          <li><strong>1.000 người đầu tiên (bấm vé số 1 ➔ 1.000):</strong> Nhận ngay phiếu giữ chỗ điện tử trong <code>1ms</code>, được mời đi vào <strong>hành lang xếp hàng có mái che (Kafka Queue)</strong> để thong thả vào quầy thu ngân (SQL DB) xuất hóa đơn trong 5 phút tới.</li>
+          <li><strong>99.000 người bấm số 1.001 trở đi:</strong> Màn hình trước cổng lập tức sáng đèn đỏ báo <em>"Rất tiếc vé đã hết sạch!"</em> trong đúng <code>0.5ms</code> và mời quay về. Phòng kế toán bên trong chỉ phục vụ đúng 1.000 khách, CPU máy tính chỉ chạy 15%, êm ru tuyệt đối!</li>
+        </ul>
+      </li>
+    </ul>
+  </div>
+  <div class="lang-en">
+    <strong>💡 Real-Life Mental Analogy: 3 Levels of Selling 1,000 VIP Tickets to 100,000 Fans</strong>
+    <p>Imagine an auditorium with exactly <strong>1,000 VIP seats</strong>, and <strong>100,000 fans</strong> storming the entrance at 12:00 PM:</p>
+    <ul>
+      <li>❌ <strong>Level 1 — Naive (Swinging the gates wide open into the Accountant's Paper Ledger Room — SQL DB):</strong>
+        <p>All 100k fans rush into the small accounting office. The accountant looks at the ledger: <em>"1 ticket left"</em>. Before she can cross it out, 50 fans see it simultaneously and shout <em>"I take it!"</em>. Consequences:</p>
+        <ol>
+          <li><strong>Overselling:</strong> 1 seat sold to 50 people. Negative inventory, lawsuits, PR nightmare.</li>
+          <li><strong>Building Collapse:</strong> If she bolts the door to serve one person at a time (Exclusive Row Lock), the mob stampedes the building (Connection pool exhaustion, cascading 504 timeouts).</li>
+        </ol>
+      </li>
+      <li>⚠️ <strong>Level 2 — Distributed Locks (Calling walkie-talkies at every door — RedLock):</strong>
+        <p>Every guard checks a shared radio channel before letting someone in. 100,000 radio calls in the same second saturate the channel (Lock Contention). Latency spikes to 30s, and customers leave angry.</p>
+      </li>
+      <li>✅ <strong>Level 3 — Enterprise Standard (High-Speed Token Dispenser at the Gate + Buffered Queue Corridor):</strong>
+        <p>Keep the crowd away from the accountant completely. Deploy an <strong>ultra-fast electronic dispenser right at the perimeter gate (Single-threaded in-memory Redis running 150,000 ops/sec)</strong>:</p>
+        <ul>
+          <li><strong>The first 1,000 fans (Tickets #1 ➔ #1,000):</strong> Receive a digital reservation token in <code>1ms</code> and are routed into a <strong>covered queue corridor (Kafka Queue)</strong> to pay at the cash desk (SQL DB) over the next 5 minutes.</li>
+          <li><strong>The remaining 99,000 fans (Ticket #1,001+):</strong> Instantly see a red screen: <em>"Sold Out!"</em> in <code>0.5ms</code> and exit cleanly. The accounting office inside only serves 1,000 people at 15% CPU load!</li>
+        </ul>
+      </li>
+    </ul>
+  </div>
+</div>
+
+<!-- ==========================================
+     SECTION 3: GIỚI HẠN VẬT LÝ & DẪN CHỨNG SỐ LIỆU PHẦN CỨNG
+     ========================================== -->
+<h2 class="lang-vi">1. Dẫn chứng Số liệu &amp; Giới hạn Vật lý Phần cứng (Hardware Limits &amp; Benchmarks)</h2>
+<h2 class="lang-en">1. Concrete Benchmarks &amp; Physical Hardware Constraints</h2>
+
+<div class="lang-vi">
+  <p>Tại sao chúng ta <strong>bắt buộc phải dùng kiến trúc đa tầng (Redis + Kafka)</strong> mà không thể nâng cấp CPU server hay tối ưu câu lệnh SQL? Hãy nhìn vào bảng giới hạn vật lý thực tế:</p>
+</div>
+<div class="lang-en">
+  <p>Why is a <strong>multi-tiered architecture (Redis + Kafka) an absolute physical necessity</strong> rather than just scaling up CPU or optimizing SQL queries? Examine the empirical hardware constraints:</p>
+</div>
+
+<table>
+  <thead>
+    <tr>
+      <th><span class="lang-vi">Hợp phần / Tài nguyên</span><span class="lang-en">Component / Resource</span></th>
+      <th><span class="lang-vi">Giới hạn thông lượng tối đa (Throughput)</span><span class="lang-en">Max Physical Throughput</span></th>
+      <th><span class="lang-vi">Độ trễ trung bình (Latency)</span><span class="lang-en">Typical Latency</span></th>
+      <th><span class="lang-vi">Hành vi khi chịu tải 100.000 RPS dội tới cùng 1 giây</span><span class="lang-en">Behavior under 100k RPS instant burst</span></th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>RDBMS Write (SQL Server / PostgreSQL)</strong></td>
+      <td><strong>1,500 – 3,000 Write TPS</strong><br><em>(Do nghẽn đĩa Write-Ahead Log WAL fsync xuống SSD)</em></td>
+      <td>10ms – 50ms</td>
+      <td>💥 <strong>SẬP TOÀN DIỆN.</strong> 100.000 transaction tranh chấp Exclusive Lock trên 1 dòng sản phẩm (Hot Row). Connection Pool đầy (mặc định 100 conn trong .NET), hàng chờ tràn ram, CPU nhảy vọt 100%, trả lỗi <code>TimeoutException</code>.</td>
+    </tr>
+    <tr>
+      <td><strong>RDBMS Connection Pool (.NET Default)</strong></td>
+      <td><strong>Max Pool Size = 100 connections</strong></td>
+      <td>0.1ms (mượn pool)</td>
+      <td>💥 <strong>Starvation Deadlock.</strong> 100 connection bị giữ chặt bởi 100 request đang chờ disk I/O. 99.900 thread trong .NET ThreadPool bị block, dẫn tới threadpool starvation và crash tiến trình Kestrel.</td>
+    </tr>
+    <tr>
+      <td><strong>Redis In-Memory Single Core (RAM)</strong></td>
+      <td><strong>100,000 – 150,000 OPS</strong><br><em>(Chạy 100% trên RAM bằng C event loop epoll)</em></td>
+      <td><strong>0.2ms – 1.0ms</strong></td>
+      <td>✅ <strong>CHỊU TẢI HOÀN HẢO.</strong> Đơn luồng xử lý tuần tự từng lệnh Lua script. Không có tranh chấp khóa (Lock-free), trừ tồn kho nguyên tử 1.000 cái chỉ mất đúng <strong>12 mili-giây</strong>!</td>
+    </tr>
+    <tr>
+      <td><strong>Card mạng Máy chủ (NIC 1Gbps vs 10Gbps)</strong></td>
+      <td><strong>1Gbps = ~110 MB/giây hữu dụng</strong></td>
+      <td>0.05ms</td>
+      <td>⚠️ <strong>Cạm bẫy Hot Key:</strong> Nếu 1 request JSON trả về 1.5 KB, 100.000 RPS = <strong>150 MB/s</strong> ➔ Vượt quá băng thông card mạng 1Gbps của 1 server Redis duy nhất! Bắt buộc phải có <strong>Local In-Memory Cache (L1)</strong> và <strong>Hot Key Sharding</strong>.</td>
+    </tr>
+    <tr>
+      <td><strong>Message Broker (Apache Kafka)</strong></td>
+      <td><strong>200,000+ Msgs/giây</strong><br><em>(Ghi tuần tự Sequential Disk Append + Page Cache)</em></td>
+      <td>2ms – 5ms</td>
+      <td>✅ <strong>Peak Shaving (San phẳng đỉnh):</strong> Tiếp nhận 1.000 đơn hàng thành công trong tích tắc, sau đó nhả từ từ cho DB với tốc độ 200 đơn/giây mà DB không hề hay biết ngoài kia đang có bão!</td>
+    </tr>
+  </tbody>
+</table>
+
+<!-- ==========================================
+     SECTION 4: SƠ ĐỒ KIẾN TRÚC HỆ THỐNG ĐỈNH CAO (SVG)
+     ========================================== -->
+<h2 class="lang-vi">2. Sơ đồ Kiến trúc Toàn diện: Phễu 5 Tầng Phòng Thủ (5-Layer Traffic Funnel Architecture)</h2>
+<h2 class="lang-en">2. Comprehensive Architecture: 5-Layer Traffic Funnel Defense</h2>
+
+<div class="lang-vi">
+  <p>Dưới đây là sơ đồ kiến trúc chuẩn Enterprise được áp dụng tại các nền tảng E-Commerce và Vé sự kiện lớn:</p>
+</div>
+<div class="lang-en">
+  <p>Here is the enterprise-grade architecture diagram deployed at top tier e-commerce and ticketing platforms:</p>
+</div>
+
+<div class="sd-diagram-box">
+  <svg viewBox="0 0 960 620" style="width:100%; min-width:760px; height:auto; font-family:system-ui, -apple-system, sans-serif;">
+    <defs>
+      <!-- Arrow Markers -->
+      <marker id="arrow-blue" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+        <path d="M 0 1 L 10 5 L 0 9 z" fill="#0284c7"/>
+      </marker>
+      <marker id="arrow-green" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+        <path d="M 0 1 L 10 5 L 0 9 z" fill="#059669"/>
+      </marker>
+      <marker id="arrow-red" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+        <path d="M 0 1 L 10 5 L 0 9 z" fill="#e11d48"/>
+      </marker>
+      <marker id="arrow-purple" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+        <path d="M 0 1 L 10 5 L 0 9 z" fill="#7c3aed"/>
+      </marker>
+      <marker id="arrow-amber" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+        <path d="M 0 1 L 10 5 L 0 9 z" fill="#d97706"/>
+      </marker>
+      
+      <!-- Gradients -->
+      <linearGradient id="headerGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+        <stop offset="0%" stop-color="#0f172a"/>
+        <stop offset="100%" stop-color="#1e293b"/>
+      </linearGradient>
+      <linearGradient id="fastPathGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+        <stop offset="0%" stop-color="#ecfdf5"/>
+        <stop offset="100%" stop-color="#d1fae5"/>
+      </linearGradient>
+    </defs>
+
+    <!-- Header Banner -->
+    <rect x="15" y="12" width="930" height="48" rx="10" fill="url(#headerGrad)"/>
+    <text x="35" y="42" fill="#ffffff" font-size="15" font-weight="bold">⚡ PRODUCTION FLASH SALE ARCHITECTURE: 100,000 RPS INGEST ➔ 200 TPS DATABASE WRITES</text>
+    <rect x="785" y="24" width="145" height="24" rx="12" fill="#0284c7"/>
+    <text x="797" y="40" fill="#ffffff" font-size="11" font-weight="bold">ENTERPRISE STANDARD</text>
+
+    <!-- ==================== TẦNG 0 & 1: CLIENT & EDGE CDN ==================== -->
+    <rect x="15" y="75" width="260" height="240" rx="12" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1.8"/>
+    <rect x="15" y="75" width="260" height="34" rx="12" fill="#e2e8f0"/>
+    <text x="28" y="98" fill="#1e293b" font-size="13" font-weight="bold">TẦNG 1: CLIENT &amp; EDGE CDN</text>
+
+    <!-- Client Box -->
+    <rect x="28" y="118" width="234" height="65" rx="8" fill="#ffffff" stroke="#94a3b8" stroke-width="1"/>
+    <text x="38" y="138" fill="#0f172a" font-size="11.5" font-weight="bold">📱 Mobile Apps &amp; Web Browsers</text>
+    <text x="38" y="156" fill="#475569" font-size="10.5">• 100,000 Users bấm nút Mua lúc 12:00:00</text>
+    <text x="38" y="172" fill="#475569" font-size="10.5">• Local Debounce: Khóa nút Mua 3s sau khi bấm</text>
+
+    <!-- CDN / Edge Box -->
+    <rect x="28" y="193" width="234" height="110" rx="8" fill="#e0f2fe" stroke="#38bdf8" stroke-width="1.5"/>
+    <text x="38" y="213" fill="#0284c7" font-size="11.5" font-weight="bold">🌐 Cloudflare / Akamai CDN Edge</text>
+    <text x="38" y="231" fill="#0f172a" font-size="10.5">• <strong>Static Asset Caching:</strong> Hình ảnh, CSS, JS 100%</text>
+    <text x="38" y="248" fill="#0f172a" font-size="10.5">• <strong>Virtual Waiting Room (Phòng chờ ảo):</strong></text>
+    <text x="48" y="265" fill="#0369a1" font-size="10">Xả van điều tiết: 30,000 req/s vào API</text>
+    <text x="38" y="285" fill="#dc2626" font-size="10" font-weight="bold">🛡️ Chặn 40,000 req bot spam ngay tại biên!</text>
+
+    <!-- ==================== TẦNG 2: API GATEWAY & SECURITY ==================== -->
+    <rect x="310" y="75" width="290" height="240" rx="12" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1.8"/>
+    <rect x="310" y="75" width="290" height="34" rx="12" fill="#e2e8f0"/>
+    <text x="325" y="98" fill="#1e293b" font-size="13" font-weight="bold">TẦNG 2: API GATEWAY (YARP / ENVOY)</text>
+
+    <rect x="325" y="118" width="260" height="185" rx="8" fill="#fff7ed" stroke="#fdba74" stroke-width="1.5"/>
+    <text x="337" y="138" fill="#c2410c" font-size="11.5" font-weight="bold">🛡️ 4 Lớp Thẩm định Siêu Tốc (&lt; 2ms):</text>
+    <text x="337" y="160" fill="#0f172a" font-size="10.5">1. <strong>WAF &amp; Anti-Bot:</strong> Xác thực Turnstile / Captcha</text>
+    <text x="337" y="180" fill="#0f172a" font-size="10.5">2. <strong>Dynamic URL Token:</strong></text>
+    <text x="350" y="196" fill="#7c2d12" font-size="10">Chặn Tool hacker gọi API trước giờ G (MD5 Salt)</text>
+    <text x="337" y="218" fill="#0f172a" font-size="10.5">3. <strong>Distributed Rate Limiter (Token Bucket):</strong></text>
+    <text x="350" y="234" fill="#7c2d12" font-size="10">Chặn mỗi User ID chỉ gọi tối đa 1 req / 3 giây</text>
+    <text x="337" y="256" fill="#0f172a" font-size="10.5">4. <strong>Blacklist IP / Device Fingerprint</strong></text>
+    <rect x="337" y="268" width="236" height="24" rx="6" fill="#fee2e2"/>
+    <text x="345" y="284" fill="#b91c1c" font-size="10" font-weight="bold">Lọc sạch rác ➔ Chỉ còn 20,000 req/s hợp lệ</text>
+
+    <!-- Connect 1 -> 2 -->
+    <line x1="275" y1="195" x2="310" y2="195" stroke="#0284c7" stroke-width="2.5" marker-end="url(#arrow-blue)"/>
+    <text x="278" y="187" fill="#0284c7" font-size="10" font-weight="bold">30k rps</text>
+
+    <!-- ==================== TẦNG 3: .NET 8 PODS & L1 CACHE ==================== -->
+    <rect x="635" y="75" width="310" height="240" rx="12" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1.8"/>
+    <rect x="635" y="75" width="310" height="34" rx="12" fill="#e2e8f0"/>
+    <text x="650" y="98" fill="#1e293b" font-size="13" font-weight="bold">TẦNG 3: .NET 8 PODS + L1 MEMORY CACHE</text>
+
+    <rect x="650" y="118" width="280" height="90" rx="8" fill="#f5f3ff" stroke="#c4b5fd" stroke-width="1.5"/>
+    <text x="662" y="138" fill="#6d28d9" font-size="11.5" font-weight="bold">⚡ Kestrel Web API Cluster (10 - 20 Pods)</text>
+    <text x="662" y="156" fill="#0f172a" font-size="10.5">• <strong>L1 In-Process Cache (IMemoryCache):</strong></text>
+    <text x="672" y="173" fill="#5b21b6" font-size="10">• Cờ <code>bool isSoldOut = false;</code></text>
+    <text x="672" y="190" fill="#5b21b6" font-size="10">• Khi Redis báo hết hàng ➔ Bật cờ = true ngay!</text>
+
+    <!-- Short-circuit branch -->
+    <rect x="650" y="218" width="280" height="85" rx="8" fill="#fee2e2" stroke="#fca5a5" stroke-width="1.5"/>
+    <text x="662" y="238" fill="#b91c1c" font-size="11.5" font-weight="bold">🛑 FAST SHORT-CIRCUIT (CẮT CẦU GIAO TẠI CHỖ):</text>
+    <text x="662" y="258" fill="#7f1d1d" font-size="10.5">Khi <code>isSoldOut == true</code>, trả ngay "Hết hàng!" trong <strong>0.02ms</strong></text>
+    <text x="662" y="276" fill="#991b1b" font-size="10" font-weight="bold">➔ 95% traffic sau đó KHÔNG HỀ ĐÁNH XUỐNG REDIS NỮA!</text>
+    <text x="662" y="292" fill="#7f1d1d" font-size="9.5">Bảo vệ mạng Redis tuyệt đối an toàn khỏi cháy card mạng!</text>
+
+    <!-- Connect 2 -> 3 -->
+    <line x1="600" y1="195" x2="635" y2="195" stroke="#0284c7" stroke-width="2.5" marker-end="url(#arrow-blue)"/>
+    <text x="602" y="187" fill="#0284c7" font-size="10" font-weight="bold">20k rps</text>
+
+    <!-- ==================== TẦNG 4: REDIS CLUSTER & LUA SCRIPT ==================== -->
+    <rect x="15" y="345" width="410" height="260" rx="12" fill="#fffbeb" stroke="#fde68a" stroke-width="1.8"/>
+    <rect x="15" y="345" width="410" height="34" rx="12" fill="#fef3c7"/>
+    <text x="30" y="368" fill="#92400e" font-size="13" font-weight="bold">TẦNG 4: REDIS CLUSTER + ATOMIC LUA SCRIPT (RAM)</text>
+
+    <rect x="30" y="390" width="380" height="135" rx="8" fill="#ffffff" stroke="#f59e0b" stroke-width="1.5"/>
+    <text x="42" y="410" fill="#b45309" font-size="11.5" font-weight="bold">⚙️ Redis Atomic Lua Execution (Single-Threaded RAM):</text>
+    <text x="42" y="430" fill="#0f172a" font-size="10.5">1. <code>SISMEMBER flashsale:users:{pid} {uid}</code> ➔ Đã mua? Return -1</text>
+    <text x="42" y="449" fill="#0f172a" font-size="10.5">2. <code>GET flashsale:stock:{pid}:shard_{n}</code> ➔ Lấy tồn kho RAM</text>
+    <text x="42" y="468" fill="#0f172a" font-size="10.5">3. If stock &lt; qty ➔ Hết hàng! Return 0</text>
+    <text x="42" y="487" fill="#0f172a" font-size="10.5">4. <code>DECRBY stock</code> &amp; <code>SADD users {uid}</code> ➔ Thành công! Return 1</text>
+    <text x="42" y="508" fill="#059669" font-size="10.5" font-weight="bold">⏱️ Thời gian thực thi: 0.15ms / lệnh — Không Lock, Không Race Condition!</text>
+
+    <!-- Redis Result Routing -->
+    <rect x="30" y="535" width="180" height="58" rx="8" fill="#ecfdf5" stroke="#6ee7b7" stroke-width="1.5"/>
+    <text x="40" y="555" fill="#065f46" font-size="11" font-weight="bold">✅ Return = 1 (1.000 vé)</text>
+    <text x="40" y="572" fill="#047857" font-size="10">Sinh ReservationId</text>
+    <text x="40" y="586" fill="#047857" font-size="10">Đẩy ngay vào Kafka Queue</text>
+
+    <rect x="230" y="535" width="180" height="58" rx="8" fill="#fee2e2" stroke="#fca5a5" stroke-width="1.5"/>
+    <text x="240" y="555" fill="#991b1b" font-size="11" font-weight="bold">❌ Return = 0 hoặc -1</text>
+    <text x="240" y="572" fill="#7f1d1d" font-size="10">Báo Sold Out trong 1ms</text>
+    <text x="240" y="586" fill="#7f1d1d" font-size="10">Kích hoạt L1 Cache Pods</text>
+
+    <!-- Connect 3 -> 4 -->
+    <path d="M 750 315 L 750 330 L 220 330 L 220 345" fill="none" stroke="#0284c7" stroke-width="2.5" marker-end="url(#arrow-blue)"/>
+    <text x="420" y="325" fill="#0284c7" font-size="10" font-weight="bold">Lua Script: Check &amp; Deduct</text>
+
+    <!-- ==================== TẦNG 5: KAFKA & WORKER & DATABASE ==================== -->
+    <rect x="450" y="345" width="495" height="260" rx="12" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1.8"/>
+    <rect x="450" y="345" width="495" height="34" rx="12" fill="#e2e8f0"/>
+    <text x="465" y="368" fill="#1e293b" font-size="13" font-weight="bold">TẦNG 5: KAFKA PEAK SHAVING &amp; ASYNC ORDER FULFILLMENT</text>
+
+    <!-- Kafka Box -->
+    <rect x="465" y="390" width="145" height="135" rx="8" fill="#faf5ff" stroke="#a855f7" stroke-width="1.5"/>
+    <text x="475" y="412" fill="#7e22ce" font-size="11.5" font-weight="bold">📬 Kafka Broker</text>
+    <text x="475" y="432" fill="#0f172a" font-size="10">• Topic: <code>flash-orders</code></text>
+    <text x="475" y="450" fill="#0f172a" font-size="10">• 8 Partitions (Key: uid)</text>
+    <text x="475" y="470" fill="#6b21a8" font-size="10.5" font-weight="bold">Đệm lưu 1.000 đơn</text>
+    <text x="475" y="488" fill="#4c1d95" font-size="9.5">San phẳng đỉnh tải</text>
+    <text x="475" y="506" fill="#047857" font-size="9.5">Trả HTTP 202 ngay!</text>
+
+    <!-- Worker Box -->
+    <rect x="630" y="390" width="145" height="135" rx="8" fill="#f0fdf4" stroke="#4ade80" stroke-width="1.5"/>
+    <text x="640" y="412" fill="#15803d" font-size="11.5" font-weight="bold">👷 .NET Worker Pool</text>
+    <text x="640" y="432" fill="#0f172a" font-size="10">• 4 Background Workers</text>
+    <text x="640" y="450" fill="#0f172a" font-size="10">• Consume theo Batch 50</text>
+    <text x="640" y="470" fill="#0f172a" font-size="10">• Rút đều: 200 đơn/s</text>
+    <text x="640" y="488" fill="#15803d" font-size="10.5" font-weight="bold">Tạo Order (Pending)</text>
+    <text x="640" y="506" fill="#166534" font-size="9.5">Phát sinh hẹn giờ 10p</text>
+
+    <!-- DB Box -->
+    <rect x="795" y="390" width="135" height="135" rx="8" fill="#eff6ff" stroke="#60a5fa" stroke-width="1.5"/>
+    <text x="805" y="412" fill="#1d4ed8" font-size="11.5" font-weight="bold">🗄️ SQL Database</text>
+    <text x="805" y="432" fill="#0f172a" font-size="10">• SQL Server / Postgres</text>
+    <text x="805" y="450" fill="#0f172a" font-size="10">• Chỉ chịu 200 TPS</text>
+    <text x="805" y="470" fill="#0f172a" font-size="10">• CPU ổn định 15%</text>
+    <text x="805" y="488" fill="#1d4ed8" font-size="10.5" font-weight="bold">An toàn 100%</text>
+    <text x="805" y="506" fill="#1e40af" font-size="9.5">Hoàn tất sau 5 giây!</text>
+
+    <!-- Connect Redis -> Kafka -->
+    <line x1="210" y1="564" x2="465" y2="457" stroke="#059669" stroke-width="2.2" marker-end="url(#arrow-green)"/>
+
+    <!-- Connect Kafka -> Worker -->
+    <line x1="610" y1="457" x2="630" y2="457" stroke="#7c3aed" stroke-width="2.2" marker-end="url(#arrow-purple)"/>
+
+    <!-- Connect Worker -> DB -->
+    <line x1="775" y1="457" x2="795" y2="457" stroke="#0284c7" stroke-width="2.2" marker-end="url(#arrow-blue)"/>
+
+    <!-- Timeout Rollback Path -->
+    <rect x="465" y="540" width="465" height="52" rx="8" fill="#fffbeb" stroke="#f59e0b" stroke-width="1.5"/>
+    <text x="475" y="560" fill="#b45309" font-size="11" font-weight="bold">⏱️ VÒNG HOÀN KHO TỰ ĐỘNG (10-Minute Abandoned Cart Rollback Loop):</text>
+    <text x="475" y="578" fill="#78350f" font-size="10">Sau 10 phút chưa Paid ➔ Worker hủy Order ➔ Gọi Lua: <code>INCRBY stock +1</code> &amp; <code>SREM users {uid}</code> cho người khác mua!</text>
+
+    <path d="M 465 566 L 440 566 L 440 457 L 415 457" fill="none" stroke="#d97706" stroke-width="2" stroke-dasharray="4,4" marker-end="url(#arrow-amber)"/>
+  </svg>
+</div>
+
+<!-- ==========================================
+     SECTION 5: 5 ĐÒN TẤN CÔNG & GIẢI PHÁP THỰC CHIẾN
+     ========================================== -->
+<h2 class="lang-vi">3. Đào sâu 5 Thách thức Sát thủ trong Thực tế &amp; Lời giải Cụ thể (5 Production Traps &amp; Solutions)</h2>
+<h2 class="lang-en">3. Deep-Dive: 5 Fatal Production Pitfalls &amp; Battle-Tested Solutions</h2>
+
+<div class="lang-vi">
+  <h3>🔥 Thách thức 1: Hacker dùng Bot dò quét trước giờ G và bắn phá API (Pre-sale Snooping &amp; Bot Attacks)</h3>
+  <p><strong>Hiện tượng thực tế:</strong> Giờ Flash Sale là <code>12:00:00</code>. Nhưng từ <code>11:59:50</code>, hàng chục ngàn con bot của "dân săn sale" đã dùng script Python viết sẵn endpoint <code>POST /api/v1/orders</code> kèm <code>productId = 999</code> và bắn phá liên tục để cướp hàng ngay mili-giây mở bán.</p>
+  <p><strong>Giải pháp chuẩn Shopee / Alibaba: Dynamic Secret URL Token (Đường dẫn động có chữ ký)</strong></p>
+  <ul>
+    <li>URL mua hàng không bao giờ cố định, mà có dạng: <code>POST /api/v1/flashsale/buy/{productId}?token={signature}</code>.</li>
+    <li>Công thức tính token: <code>signature = HMAC_SHA256(userId + productId + serverTimestamp + SECRET_SALT)</code>.</li>
+    <li><code>SECRET_SALT</code> chỉ được sinh ra và nạp vào Redis đúng lúc <strong><code>12:00:00.000</code></strong>. Trước 12h00, API Gateway kiểm tra không có token hoặc token sai ➔ <strong>Bác bỏ ngay lập tức tại Gateway trong 0.1ms (HTTP 403 Forbidden)</strong>, không tiêu tốn một chu kỳ CPU nào của backend!</li>
+  </ul>
+
+  <h3>🔥 Thách thức 2: Cháy Card Mạng Redis do Nghẽn Điểm Nóng (Redis Hot Key Bottleneck &amp; NIC Saturation)</h3>
+  <p><strong>Hiện tượng thực tế:</strong> Cho dù bạn có dựng cụm Redis Cluster gồm 10 nodes mạnh mẽ, nhưng chiếc iPhone 16 Flash Sale chỉ là <strong>DUY NHẤT 1 KEY</strong> (<code>flashsale:stock:iphone16</code>). Theo thuật toán CRC16 Hashing của Redis Cluster, 1 key chỉ nằm trên <strong>ĐÚNG 1 NODE DUY NHẤT (Single Shard)</strong>! Toàn bộ 100.000 RPS dồn vào đúng 1 node đó khiến băng thông card mạng (NIC) và CPU của node đó quá tải sập nguồn, trong khi 9 node còn lại... ngồi chơi xơi nước!</p>
+  <p><strong>Giải pháp thực chiến: Inventory Sharding (Chia nhỏ kho hàng phân tán)</strong></p>
+  <ul>
+    <li>Thay vì lưu 1 key chứa 1.000 máy, hệ thống chia nhỏ thành <strong>10 Sub-Keys (Shards)</strong>, mỗi key giữ 100 máy:
+      <ul>
+        <li><code>flashsale:stock:iphone16:shard_0</code> (100 chiếc) nằm trên Node 1</li>
+        <li><code>flashsale:stock:iphone16:shard_1</code> (100 chiếc) nằm trên Node 2</li>
+        <li>...</li>
+        <li><code>flashsale:stock:iphone16:shard_9</code> (100 chiếc) nằm trên Node 10</li>
+      </ul>
+    </li>
+    <li>Khi User bấm Mua: Backend hash <code>userId % 10</code> để chỉ định Shard tương ứng. Lưu lượng 100.000 RPS lập tức được <strong>chia đều cho cả 10 node Redis (mỗi node chỉ chịu 10.000 RPS nhẹ nhàng)</strong>!</li>
+    <li>Nếu Shard của User hết hàng, Client có thể fallback sang Shard ngẫu nhiên còn lại.</li>
+  </ul>
+
+  <h3>🔥 Thách thức 3: Rút phích cắm bão traffic bằng L1 In-Process Cache (Local Short-Circuit)</h3>
+  <p><strong>Hiện tượng thực tế:</strong> Chỉ có 1.000 chiếc điện thoại. Sau <strong><code>1.5 giây đầu tiên</code></strong>, hàng đã bán sạch 100%. Nhưng người dùng vẫn tiếp tục bấm F5 và nút Mua trong suốt 10 phút sau đó (hàng triệu requests dội tới)! Nếu hàng triệu request này vẫn tiếp tục gọi xuống Redis để kiểm tra tồn kho thì mạng Redis vẫn có thể nghẽn.</p>
+  <p><strong>Giải pháp: Cắt cầu giao tại chỗ (Local Memory Short-Circuiting)</strong></p>
+  <ul>
+    <li>Trên mỗi Pod Kestrel .NET 8, khai báo 1 biến cờ trong bộ nhớ RAM tiến trình: <code>private static volatile bool IsSoldOut = false;</code>.</li>
+    <li>Ngay khi 1 request từ Pod này nhận kết quả từ Redis báo <code>Stock == 0</code>, Pod lập tức gán <code>IsSoldOut = true</code> (và có thể publish qua Redis Pub/Sub để báo tất cả các Pod khác cùng bật).</li>
+    <li>Tất cả các request tiếp theo tới Pod đó: <strong>Được trả về ngay lập tức "Rất tiếc, đã hết hàng!" từ RAM cục bộ trong 0.02ms mà không tốn bất kỳ 1 network call nào xuống Redis!</strong></li>
+  </ul>
+
+  <h3>🔥 Thách thức 4: Giữ hàng nhưng "Bùng" không trả tiền (Abandoned Cart &amp; Inventory Leakage)</h3>
+  <p><strong>Hiện tượng thực tế:</strong> Nhiều người săn được vé/máy nhưng đến bước quét mã QR thanh toán thì tài khoản ngân hàng không đủ tiền, hoặc đổi ý không mua. Nếu giữ tồn kho mãi thì 1.000 chiếc điện thoại chỉ thực tế bán được 300 chiếc, 700 chiếc bị "giam lỏng".</p>
+  <p><strong>Giải pháp: Delayed Message Queue (Hẹn giờ hủy đơn tự động)</strong></p>
+  <ul>
+    <li>Khi User giành được suất giữ hàng: Backend tạo Order trạng thái <code>PENDING_PAYMENT</code> và bắn một <strong>Delayed Message (hẹn giờ 10 phút) vào RabbitMQ (Dead-Letter Exchange) hoặc Kafka Scheduled Topic</strong>.</li>
+    <li>Frontend hiển thị đồng hồ đếm ngược 10:00 cho khách thanh toán.</li>
+    <li>Sau 10 phút, Worker nhận Delayed Message, truy vấn DB xem Order đã chuyển sang <code>PAID</code> chưa. Nếu vẫn là <code>PENDING</code>:
+      <ol>
+        <li>Cập nhật Order = <code>CANCELLED_TIMEOUT</code>.</li>
+        <li>Chạy lệnh Redis Lua: <code>INCRBY flashsale:stock:{id} 1</code> và <code>SREM flashsale:users:{id} {userId}</code> để trả lại tồn kho vào RAM cho người khác tiếp tục săn!</li>
+      </ol>
+    </li>
+  </ul>
+
+  <h3>🔥 Thách thức 5: Chống Gian Lận (1 Người tạo 100 Tài khoản Clone / Dùng Tool Auto Click)</h3>
+  <p><strong>Giải pháp 3 lớp chống gian lận:</strong></p>
+  <ol>
+    <li><strong>Device Fingerprint (Dấu vân tay thiết bị):</strong> Thu thập Canvas hash, WebGL vendor, Screen resolution, AudioContext hash để định danh chính xác phần cứng thiết bị. Dù mở 100 tab ẩn danh trên 1 máy tính vẫn bị nhận diện là 1 thiết bị duy nhất.</li>
+    <li><strong>Redis Set User Deduplication:</strong> Lệnh Lua <code>SISMEMBER flashsale:users:{productId} {userId}</code> đảm bảo mỗi tài khoản chỉ có thể giành quyền mua đúng 1 lần duy nhất trong toàn bộ chiến dịch.</li>
+    <li><strong>Risk Control Service (Đánh giá rủi ro ngầm):</strong> Kiểm tra tuổi thọ tài khoản (tài khoản mới tạo dưới 24h không cho tham gia Flash Sale), số điện thoại chưa xác thực OTP bị loại ngay từ vòng Gateway.</li>
+  </ol>
+</div>
+
+<div class="lang-en">
+  <h3>🔥 Pitfall 1: Pre-Sale Bot Attacks &amp; Endpoint Sniffing</h3>
+  <p><strong>Real-World Scenario:</strong> The sale starts at <code>12:00:00</code>. But at <code>11:59:50</code>, scalper bot scripts continuously spam <code>POST /api/v1/orders</code> with <code>productId = 999</code> to capture items in the very first millisecond.</p>
+  <p><strong>Shopee / Alibaba Standard Solution: Dynamic Signed URL Tokens</strong></p>
+  <ul>
+    <li>The purchase URL is dynamic: <code>POST /api/v1/flashsale/buy/{productId}?token={signature}</code>.</li>
+    <li>Token formula: <code>signature = HMAC_SHA256(userId + productId + serverTimestamp + SECRET_SALT)</code>.</li>
+    <li>The <code>SECRET_SALT</code> is only published to Redis at exactly <code>12:00:00.000</code>. Any request before 12:00 with missing or invalid token is <strong>rejected at API Gateway in 0.1ms (HTTP 403)</strong> without consuming any backend resources!</li>
+  </ul>
+
+  <h3>🔥 Pitfall 2: Redis Hot Key NIC Bandwidth Saturation</h3>
+  <p><strong>Real-World Scenario:</strong> Even on a 10-node Redis Cluster, a single Flash Sale item key (<code>flashsale:stock:iphone16</code>) maps to <strong>EXACTLY ONE SHARD</strong> via CRC16 slot hashing. Squeezing 100,000 RPS onto one node saturates its 1Gbps Network Card, crashing the node while the other 9 nodes sit idle.</p>
+  <p><strong>Production Solution: Inventory Sharding across Redis Slots</strong></p>
+  <ul>
+    <li>Split the 1,000 items into <strong>10 Sub-Key Shards</strong> (100 items each):
+      <ul>
+        <li><code>flashsale:stock:iphone16:shard_0</code> on Node 1 ... <code>shard_9</code> on Node 10</li>
+      </ul>
+    </li>
+    <li>Clients route by <code>userId % 10</code>. Traffic of 100,000 RPS is evenly distributed across all 10 nodes (only 10k RPS per node)!</li>
+  </ul>
+
+  <h3>🔥 Pitfall 3: Traffic Shock Absorber via L1 In-Process Memory Cache</h3>
+  <p><strong>Real-World Scenario:</strong> All 1,000 phones sell out in the first 1.5 seconds. However, frantic users keep pressing F5 and Buy for the next 10 minutes. Millions of requests would still hit Redis unnecessarily.</p>
+  <p><strong>Solution: Local Short-Circuiting</strong></p>
+  <ul>
+    <li>On each Kestrel .NET 8 Pod: maintain a local in-memory flag: <code>private static volatile bool IsSoldOut = false;</code>.</li>
+    <li>When Redis returns <code>0</code> (sold out), the pod sets <code>IsSoldOut = true</code>.</li>
+    <li>Subsequent requests are <strong>instantly rejected in 0.02ms from local RAM</strong> without generating any network traffic to Redis!</li>
+  </ul>
+
+  <h3>🔥 Pitfall 4: Abandoned Cart Rollback (Unpaid Reservations)</h3>
+  <p><strong>Solution: Delayed Message Queue (10-Minute Expiry)</strong></p>
+  <ul>
+    <li>When winning a token: Order is created in <code>PENDING_PAYMENT</code> status. A <strong>10-minute Delayed Message</strong> is published to RabbitMQ DLX or Kafka Scheduled Topic.</li>
+    <li>If unpaid after 10 minutes, a worker cancels the order and executes Lua: <code>INCRBY stock 1</code> and <code>SREM users {userId}</code> to release the stock back to eager shoppers!</li>
+  </ul>
+
+  <h3>🔥 Pitfall 5: Anti-Fraud &amp; Sybil Clone Defense</h3>
+  <p>Device fingerprinting (Canvas/WebGL hash) + Redis Set deduplication (one item per real human) + Risk engine filtering accounts under 24 hours old.</p>
+</div>
+
+<!-- ==========================================
+     SECTION 6: CODE TRIỂN KHAI THỰC CHIẾN (.NET 8 + LUA)
+     ========================================== -->
+<h2 class="lang-vi">4. Toàn bộ Mã nguồn Thực chiến (.NET 8 + Redis Lua + Sharded Key + Kafka)</h2>
+<h2 class="lang-en">4. Complete Production Implementation (.NET 8 + Atomic Lua + Kafka)</h2>
+
+<div class="lang-vi">
+  <p>Dưới đây là mã nguồn C# .NET 8 hoàn chỉnh, kết hợp cả 3 tầng bảo vệ: <strong>(1) L1 Memory Fast Exit</strong>, <strong>(2) Atomic Lua Script</strong>, và <strong>(3) Async Kafka Producer</strong>:</p>
+</div>
+<div class="lang-en">
+  <p>Below is the complete C# .NET 8 implementation combining all three defense rings: <strong>(1) L1 Memory Fast Exit</strong>, <strong>(2) Atomic Lua Script</strong>, and <strong>(3) Async Kafka Producer</strong>:</p>
+</div>
+
+<pre><code>// ============================================================================
+// File: FlashSaleService.cs (.NET 8 Production Standard)
+// Dependencies: StackExchange.Redis, Confluent.Kafka, Microsoft.Extensions.Caching.Memory
+// ============================================================================
+using System.Security.Cryptography;
+using System.Text;
+using Confluent.Kafka;
+using StackExchange.Redis;
+
+public sealed class FlashSaleService : IFlashSaleService
+{
+    private readonly IConnectionMultiplexer _redisMultiplexer;
+    private readonly IProducer&lt;string, string&gt; _kafkaProducer;
+    private readonly ILogger&lt;FlashSaleService&gt; _logger;
+    
+    // Ring 1: In-Process L1 Memory Cache (Short-circuit cut-off in 0.02ms)
+    private static readonly ConcurrentDictionary&lt;long, bool&gt; LocalSoldOutMap = new();
+
+    // Production Atomic Lua Script
+    // KEYS[1]: flashsale:stock:{productId}:shard_{shardId}
+    // KEYS[2]: flashsale:users:{productId} (Global Set tracking winning user IDs)
+    // ARGV[1]: userId
+    // ARGV[2]: quantity (normally 1)
+    private const string AtomicDeductLuaScript = @"
+        -- 1. Chống 1 tài khoản mua 2 lần (Idempotent 1-per-user check)
+        if redis.call('SISMEMBER', KEYS[2], ARGV[1]) == 1 then
+            return -1 -- Trùng lặp (Already Purchased)
+        end
+
+        -- 2. Kiểm tra tồn kho RAM của Shard này
+        local stock = tonumber(redis.call('GET', KEYS[1]) or '0')
+        local reqQty = tonumber(ARGV[2])
+
+        if stock &lt; reqQty then
+            return 0 -- Hết hàng trong Shard này (Sold Out)
+        end
+
+        -- 3. Trừ kho nguyên tử & Ghi nhận userId vào Set thắng cuộc
+        redis.call('DECRBY', KEYS[1], reqQty)
+        redis.call('SADD', KEYS[2], ARGV[1])
+        return 1 -- Thành công 100%!
+    ";
+
+    public FlashSaleService(
+        IConnectionMultiplexer redisMultiplexer, 
+        IProducer&lt;string, string&gt; kafkaProducer,
+        ILogger&lt;FlashSaleService&gt; logger)
+    {
+        _redisMultiplexer = redisMultiplexer;
+        _kafkaProducer = kafkaProducer;
+        _logger = logger;
+    }
+
+    public async Task&lt;FlashSaleResult&gt; TryClaimAsync(FlashSaleRequest request, CancellationToken ct = default)
+    {
+        // --------------------------------------------------------------------
+        // BƯỚC 1: L1 IN-PROCESS FAST-EXIT (Độ trễ: 0.02ms - Không tốn mạng)
+        // --------------------------------------------------------------------
+        if (LocalSoldOutMap.TryGetValue(request.ProductId, out var isSoldOut) &amp;&amp; isSoldOut)
+        {
+            return FlashSaleResult.SoldOut();
+        }
+
+        // --------------------------------------------------------------------
+        // BƯỚC 2: SHARDED INVENTORY HASHING (Chia nhỏ tải lên Redis Cluster)
+        // --------------------------------------------------------------------
+        const int TotalShards = 10;
+        int shardId = (int)(Math.Abs(request.UserId.GetHashCode()) % TotalShards);
+        
+        var stockKey = $"flashsale:stock:{request.ProductId}:shard_{shardId}";
+        var userSetKey = $"flashsale:users:{request.ProductId}";
+
+        var redisDb = _redisMultiplexer.GetDatabase();
+
+        // --------------------------------------------------------------------
+        // BƯỚC 3: ATOMIC LUA EXECUTION TRÊN REDIS RAM (Độ trễ: 0.3ms - 0.8ms)
+        // --------------------------------------------------------------------
+        var luaResult = (int)await redisDb.ScriptEvaluateAsync(
+            AtomicDeductLuaScript,
+            keys: new RedisKey[] { stockKey, userSetKey },
+            values: new RedisValue[] { request.UserId, request.Quantity });
+
+        if (luaResult == -1)
+        {
+            return FlashSaleResult.AlreadyPurchased();
+        }
+
+        if (luaResult == 0)
+        {
+            // Bật cờ L1 Cache cục bộ để bảo vệ Redis khỏi hàng triệu request tiếp theo!
+            LocalSoldOutMap.TryAdd(request.ProductId, true);
+            return FlashSaleResult.SoldOut();
+        }
+
+        // --------------------------------------------------------------------
+        // BƯỚC 4: ASYNC PEAK SHAVING QUA KAFKA (Độ trễ: 1.5ms)
+        // --------------------------------------------------------------------
+        var reservationId = $"RSV-{Guid.NewGuid():N}";
+        var orderEvent = new OrderReservationClaimedEvent(
+            ReservationId: reservationId,
+            ProductId: request.ProductId,
+            UserId: request.UserId,
+            Quantity: request.Quantity,
+            ClaimedAtUtc: DateTime.UtcNow,
+            ExpiresAtUtc: DateTime.UtcNow.AddMinutes(10)); // 10 phút để thanh toán
+
+        // Push vào Kafka theo Partition Key = UserId (đảm bảo thứ tự theo từng User)
+        await _kafkaProducer.ProduceAsync("flashsale-order-events", new Message&lt;string, string&gt;
+        {
+            Key = request.UserId,
+            Value = System.Text.Json.JsonSerializer.Serialize(orderEvent)
+        }, ct);
+
+        // Trả ngay HTTP 202 Accepted cho Client kèm ReservationId trong vòng 15ms!
+        return FlashSaleResult.Success(reservationId, orderEvent.ExpiresAtUtc);
+    }
+}
+</code></pre>
+
+<!-- ==========================================
+     SECTION 7: CHECKLIST PHỎNG VẤN SENIOR / LEAD
+     ========================================== -->
+<div class="sd-takeaway-box">
+  <div class="lang-vi">
+    <strong>🎯 Senior / Lead Interview Winning Checklist (Những câu hỏi "Vặn" tiếp theo của Hội đồng phỏng vấn):</strong>
+    <ol>
+      <li><strong>Hỏi: <em>"Nếu server Redis sập nguồn đúng lúc đang chạy Flash Sale thì sao?"</em></strong><br>
+        ➔ <strong>Trả lời ăn điểm:</strong> Triển khai <strong>Redis Sentinel hoặc Redis Cluster Master-Replica</strong> với cấu hình <code>appendonly yes</code> (AOF) ghi log từng giây. Nếu Master chết, Replica tự động Promote thành Master trong 1-2 giây. Đồng thời, Kafka đã lưu trữ toàn bộ đơn thành công, ta có thể đối soát (Reconciliation script) để dựng lại chính xác tồn kho từ Kafka vào Redis mới.
+      </li>
+      <li><strong>Hỏi: <em>"Tại sao không dùng Optimistic Locking (RowVersion) trong SQL Server cho tiện?"</em></strong><br>
+        ➔ <strong>Trả lời ăn điểm:</strong> Optimistic Lock chỉ hiệu quả khi tỷ lệ xung đột thấp (&lt; 5%). Trong Flash Sale, 100.000 người tranh 1.000 vé thì tỷ lệ xung đột là <strong>99%</strong>. 99.000 request sẽ bị ném lỗi <code>DbUpdateConcurrencyException</code>, kích hoạt retry liên hoàn (Retry Storm) biến thành một cuộc tấn công tự DDoS vào database!
+      </li>
+      <li><strong>Hỏi: <em>"Làm sao người dùng trên App biết đơn hàng của họ đã tạo xong trong DB?"</em></strong><br>
+        ➔ <strong>Trả lời ăn điểm:</strong> Có 2 giải pháp chuẩn: (1) <strong>Short-Polling</strong>: Client cầm <code>reservationId</code> gọi thăm dò mỗi 1.5 giây trong tối đa 10 giây; hoặc (2) <strong>WebSocket / SignalR Push</strong>: Khi Worker lưu DB xong, đẩy thông báo thời gian thực về App qua SignalR connectionId của User.
+      </li>
+    </ol>
+  </div>
+  <div class="lang-en">
+    <strong>🎯 Senior / Lead Interview Winning Checklist (Follow-up Grilling Questions):</strong>
+    <ol>
+      <li><strong>Follow-up: <em>"What if the Redis Master crashes midway through the flash sale?"</em></strong><br>
+        ➔ <strong>Winning Answer:</strong> Deploy <strong>Redis Cluster with Master-Replica auto-failover</strong> and AOF persistence. Furthermore, Kafka stores all successfully claimed reservations durably on disk, allowing an instant reconciliation worker to reconstruct the exact inventory state in the new Redis Master.
+      </li>
+      <li><strong>Follow-up: <em>"Why not just use SQL Optimistic Locking (RowVersion)?"</em></strong><br>
+        ➔ <strong>Winning Answer:</strong> Optimistic Locking thrives only under low write-contention (&lt; 5%). In a Flash Sale, contention is <strong>99%</strong>. 99,000 threads throw <code>DbUpdateConcurrencyException</code>, triggering retry storms that self-DDoS the relational database.
+      </li>
+      <li><strong>Follow-up: <em>"How does the client know their order was written to SQL?"</em></strong><br>
+        ➔ <strong>Winning Answer:</strong> Client either polls <code>/orders/status/{reservationId}</code> every 1.5s or receives a real-time event via <strong>SignalR / WebSocket</strong> once the backend worker completes the DB write.
+      </li>
+    </ol>
+  </div>
+</div>
+
+
+  <script>
+    function switchLang(lang, btn) {
+      document.body.setAttribute('data-vault-lang', lang);
+      document.querySelectorAll('.lang-btn').forEach(b => b.classList.remove('active'));
+      if (btn) btn.classList.add('active');
+    }
+  </script>
+</body>
+</html>

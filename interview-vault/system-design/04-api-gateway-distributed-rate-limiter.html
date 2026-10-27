@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>[System Design #4] Thiết kế API Gateway & Distributed Rate Limiter (Chặn DDoS, Spam OTP trên 20 Server .NET: Token Bucket vs Sliding Window) | [System Design #4] Design an API Gateway & Distributed Rate Limiter (Block DDoS & OTP Spam Across 20 .NET Servers: Token Bucket vs Sliding Window)</title>
+  <style>
+    :root {
+      --bg: #f8fafc;
+      --card: #ffffff;
+      --text: #0f172a;
+      --muted: #475569;
+      --border: #e2e8f0;
+      --primary: #006194;
+    }
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      max-width: 980px;
+      margin: 0 auto;
+      padding: 24px 16px 60px;
+      line-height: 1.65;
+    }
+    .standalone-toolbar {
+      position: sticky;
+      top: 12px;
+      z-index: 50;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+      background: rgba(255, 255, 255, 0.92);
+      backdrop-filter: blur(10px);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 10px 16px;
+      margin-bottom: 24px;
+      box-shadow: 0 4px 20px rgba(15, 23, 42, 0.06);
+    }
+    .lang-btn {
+      border: 1px solid var(--border);
+      background: #f1f5f9;
+      color: #334155;
+      padding: 6px 14px;
+      border-radius: 10px;
+      font-weight: 600;
+      font-size: 13px;
+      cursor: pointer;
+    }
+    .lang-btn.active {
+      background: var(--primary);
+      color: #fff;
+      border-color: var(--primary);
+    }
+    body[data-vault-lang="vi"] .lang-en { display: none !important; }
+    body[data-vault-lang="en"] .lang-vi { display: none !important; }
+    body[data-vault-lang="both"] div.lang-en,
+    body[data-vault-lang="both"] p.lang-en {
+      border-top: 1px dashed rgba(140, 160, 190, 0.4);
+      padding-top: 8px;
+      margin-top: 8px;
+    }
+    .sd-source-box {
+      border-radius: 16px;
+      border: 1px solid rgba(0, 97, 148, 0.3);
+      background: linear-gradient(135deg, rgba(0, 97, 148, 0.08), rgba(16, 185, 129, 0.06));
+      padding: 16px 20px;
+      margin-bottom: 20px;
+    }
+    .sd-analogy-box {
+      border-radius: 16px;
+      border-left: 4px solid #f59e0b;
+      background: rgba(245, 158, 11, 0.09);
+      padding: 16px 20px;
+      margin: 16px 0;
+    }
+    .sd-diagram-box {
+      border-radius: 16px;
+      border: 1px solid rgba(140, 160, 190, 0.35);
+      background: #ffffff;
+      padding: 20px;
+      margin: 20px 0;
+      overflow-x: auto;
+    }
+    .sd-takeaway-box {
+      border-radius: 16px;
+      border-left: 4px solid #10b981;
+      background: rgba(16, 185, 129, 0.09);
+      padding: 16px 20px;
+      margin: 16px 0;
+    }
+    table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 14px; }
+    th, td { border: 1px solid #cbd5e1; padding: 10px 12px; text-align: left; }
+    th { background: #f1f5f9; font-weight: 700; }
+    pre { background: #0f172a; color: #f8fafc; padding: 16px; border-radius: 12px; overflow-x: auto; font-size: 13px; }
+    code { font-family: Consolas, 'JetBrains Mono', monospace; }
+  </style>
+</head>
+<body data-vault-lang="vi">
+  <div class="standalone-toolbar">
+    <div style="font-weight: 700; font-size: 14px; color: #006194;">🏛️ System Design — Vietnam Tech Interview Vault</div>
+    <div style="display: flex; gap: 6px;">
+      <button class="lang-btn active" onclick="switchLang('vi', this)">🇻🇳 Tiếng Việt</button>
+      <button class="lang-btn" onclick="switchLang('en', this)">🇬🇧 English</button>
+      <button class="lang-btn" onclick="switchLang('both', this)">⚡ Song ngữ (VI + EN)</button>
+    </div>
+  </div>
+  <h1 class="lang-vi">[System Design #4] Thiết kế API Gateway & Distributed Rate Limiter (Chặn DDoS, Spam OTP trên 20 Server .NET: Token Bucket vs Sliding Window)</h1>
+  <h1 class="lang-en">[System Design #4] Design an API Gateway & Distributed Rate Limiter (Block DDoS & OTP Spam Across 20 .NET Servers: Token Bucket vs Sliding Window)</h1>
+  <div class="sd-source-box">
+  <div class="lang-vi">
+    <strong>📌 Nguồn câu hỏi &amp; Độ tin cậy (Verified Vietnam Tech Interviews):</strong>
+    <ul>
+      <li><strong>Các công ty thường hỏi tại Việt Nam:</strong> <strong>OPSWAT Vietnam</strong>, <strong>Axon Active</strong>, <strong>KMS Technology</strong>, <strong>NashTech</strong>, <strong>Viettel Cyber Security</strong>.</li>
+      <li><strong>Vòng phỏng vấn:</strong> Vòng 2 — <em>System Design &amp; Cloud Security Architecture (Senior .NET Fullstack / Backend Engineer)</em>.</li>
+      <li><strong>Trích xuất nguồn thực tế:</strong>
+        <ul>
+          <li><em>Glassdoor Vietnam — OPSWAT &amp; Axon Senior Software Engineer Interview:</em> "Hệ thống của bạn có 20 instance .NET chạy sau Load Balancer. Làm sao thiết kế Distributed Rate Limiter giới hạn chính xác mỗi API Key chỉ được gọi 100 request/phút và API gửi SMS OTP chỉ được gọi 3 lần/15 phút? So sánh Fixed Window, Sliding Window và Token Bucket."</li>
+        </ul>
+      </li>
+    </ul>
+  </div>
+  <div class="lang-en">
+    <strong>📌 Verified Interview Source &amp; Credibility (Vietnam Tech Market):</strong>
+    <ul>
+      <li><strong>Frequently Asked By in Vietnam:</strong> <strong>OPSWAT Vietnam</strong>, <strong>Axon Active</strong>, <strong>KMS Technology</strong>, <strong>NashTech</strong>, <strong>Viettel Cyber Security</strong>.</li>
+      <li><strong>Interview Round:</strong> Round 2 — <em>System Design &amp; Cloud Security Architecture (Senior .NET Fullstack / Backend Engineer)</em>.</li>
+      <li><strong>Documented Sources:</strong>
+        <ul>
+          <li><em>Glassdoor Vietnam — OPSWAT &amp; Axon Senior Software Engineer Interview:</em> "Your system runs 20 .NET instances behind a Load Balancer. How do you design a Distributed Rate Limiter enforcing 100 requests/min per API Key and 3 SMS OTP requests/15 min? Compare Fixed Window, Sliding Window, and Token Bucket."</li>
+        </ul>
+      </li>
+    </ul>
+  </div>
+</div>
+
+<div class="sd-analogy-box">
+  <div class="lang-vi">
+    <strong>💡 Ví dụ hình dung đời thực: Tại sao "Đếm theo từng phút chẵn (Fixed Window)" lại có lỗ hổng chết người?</strong>
+    <p>Giả sử bạn quy định: <strong>Mỗi phút chỉ cho phép tối đa 100 request</strong>.</p>
+    <ul>
+      <li>❌ <strong>Lỗ hổng Biên giới phút (Boundary Spike) của Fixed Window:</strong>
+        Khách hàng không gọi gì từ <code>10:00:00</code> đến <code>10:00:58</code>. Nhưng đúng giây cuối cùng <strong><code>10:00:59</code>, họ bắn 100 request</strong> (Hợp lệ trong cửa sổ phút <code>10:00</code>!). Ngay giây tiếp theo <strong><code>10:01:00</code>, bộ đếm sang phút mới và reset về 0, họ bắn tiếp 100 request nữa!</strong>
+        ➔ Tổng cộng: <strong>Trong vòng đúng 2 giây (<code>10:00:59</code> ➔ <code>10:01:00</code>), hệ thống bị dội 200 request (Gấp đôi giới hạn cho phép)!</strong></li>
+      <li>✅ <strong>Token Bucket (Xô đựng xu tự động):</strong>
+        Mỗi User có 1 chiếc xô chứa tối đa <strong>100 đồng xu</strong>. Cứ mỗi giây vòi nước nhỏ thêm <strong>1.66 xu</strong> vào xô (tối đa không tràn quá 100 xu). Mỗi request đi qua phải lấy 1 xu. Khi hết sạch xu trong xô, User bắt buộc phải chờ vòi nhỏ từng giọt mới đi tiếp được ➔ Không bao giờ có chuyện x2 lưu lượng ở ranh giới phút!</li>
+    </ul>
+  </div>
+  <div class="lang-en">
+    <strong>💡 Real-Life Analogy: Why "Fixed Window Counter" Has a Dangerous Boundary Flaw</strong>
+    <p>Suppose your rule is: <strong>Maximum 100 requests per minute</strong>.</p>
+    <ul>
+      <li>❌ <strong>The Boundary Spike Flaw of Fixed Window:</strong>
+        A client sends 0 requests from <code>10:00:00</code> to <code>10:00:58</code>. Then at <strong><code>10:00:59</code>, they fire 100 requests</strong> (valid for the <code>10:00</code> window!). One second later at <strong><code>10:01:00</code>, the counter resets to 0 for the new minute, and they fire another 100 requests!</strong>
+        ➔ Result: <strong>Within just 2 seconds (<code>10:00:59</code> ➔ <code>10:01:00</code>), your backend is hit with 200 requests (2x the allowed limit)!</strong></li>
+      <li>✅ <strong>Token Bucket (Self-Refilling Arcade Token Bucket):</strong>
+        Each user has a bucket holding at most <strong>100 tokens</strong>, refilling steadily at <strong>1.66 tokens/second</strong>. Every request consumes 1 token. Once empty, the user can only send requests at the exact refill rate—eliminating the boundary double-burst!</li>
+    </ul>
+  </div>
+</div>
+
+<h2 class="lang-vi">1. Hình vẽ Hệ thống: Minh họa lỗi Gấp Đôi Lưu Lượng ở Biên Giới Phút vs Token Bucket</h2>
+<h2 class="lang-en">1. Visual Diagram: Fixed Window Boundary Spike vs Token Bucket</h2>
+
+<div class="sd-diagram-box">
+  <svg viewBox="0 0 900 265" style="width:100%; min-width:700px; height:auto; font-family:system-ui,sans-serif;">
+    <!-- Left: Fixed Window Flaw -->
+    <rect x="12" y="12" width="430" height="240" rx="12" fill="#fef2f2" stroke="#ef4444" stroke-width="2"/>
+    <text x="28" y="38" fill="#b91c1c" font-size="13" font-weight="bold">❌ LỖ HỔNG FIXED WINDOW (Giới hạn: 100 req / phút)</text>
+    
+    <!-- Timeline axis -->
+    <line x1="35" y1="145" x2="415" y2="145" stroke="#475569" stroke-width="2"/>
+    <line x1="225" y1="65" x2="225" y2="170" stroke="#dc2626" stroke-width="2" stroke-dasharray="4,4"/>
+    <text x="55" y="168" fill="#334155" font-size="11">Cửa sổ 1 (10:00:00 - 10:00:59)</text>
+    <text x="238" y="168" fill="#334155" font-size="11">Cửa sổ 2 (10:01:00 - 10:01:59)</text>
+
+    <!-- Spike bars -->
+    <rect x="170" y="75" width="48" height="70" rx="6" fill="#ef4444"/>
+    <text x="174" y="108" fill="#ffffff" font-size="11" font-weight="bold">100 req</text>
+    <text x="173" y="124" fill="#fee2e2" font-size="9.5">10:00:59</text>
+
+    <rect x="232" y="75" width="48" height="70" rx="6" fill="#ef4444"/>
+    <text x="236" y="108" fill="#ffffff" font-size="11" font-weight="bold">100 req</text>
+    <text x="235" y="124" fill="#fee2e2" font-size="9.5">10:01:00</text>
+
+    <rect x="30" y="185" width="390" height="50" rx="8" fill="#fee2e2"/>
+    <text x="42" y="206" fill="#991b1b" font-size="11.5" font-weight="bold">💥 Trong 2 giây (10:00:59 ➔ 10:01:01) lọt qua 200 req!</text>
+    <text x="42" y="224" fill="#7f1d1d" font-size="10.5">Vượt gấp 2 lần công suất chịu tải thiết kế của Server.</text>
+
+    <!-- Right: Token Bucket + Redis Gateway -->
+    <rect x="458" y="12" width="430" height="240" rx="12" fill="#ecfdf5" stroke="#10b981" stroke-width="2"/>
+    <text x="474" y="38" fill="#047857" font-size="13" font-weight="bold">✅ TOKEN BUCKET / SLIDING WINDOW TRÊN REDIS</text>
+
+    <rect x="478" y="58" width="115" height="105" rx="10" fill="#ffffff" stroke="#059669" stroke-width="1.8"/>
+    <text x="490" y="80" fill="#065f46" font-size="11.5" font-weight="bold">Xô Token (Max 100)</text>
+    <text x="490" y="100" fill="#334155" font-size="10.5">💧 Nạp: +1.6 xu/s</text>
+    <text x="490" y="120" fill="#047857" font-size="10.5" font-weight="bold">🪙 Còn: 42 xu</text>
+    <text x="490" y="140" fill="#64748b" font-size="10">1 req = Lấy 1 xu</text>
+
+    <rect x="615" y="58" width="255" height="105" rx="10" fill="#ffffff" stroke="#059669" stroke-width="1.8"/>
+    <text x="628" y="80" fill="#0f172a" font-size="11.5" font-weight="bold">Kiến trúc 20 Pod .NET + Redis Cluster</text>
+    <text x="628" y="100" fill="#334155" font-size="10.5">• Không lưu đếm trên RAM từng Pod .NET</text>
+    <text x="628" y="118" fill="#334155" font-size="10.5">  (vì Load Balancer chia đều 20 máy).</text>
+    <text x="628" y="136" fill="#047857" font-size="10.5" font-weight="bold">• Dùng chung Redis Lua Script tại Gateway</text>
+    <text x="628" y="152" fill="#047857" font-size="10.5" font-weight="bold">  (YARP / Kong) ➔ Chính xác toàn cục!</text>
+
+    <rect x="478" y="180" width="392" height="55" rx="8" fill="#d1fae5"/>
+    <text x="490" y="200" fill="#065f46" font-size="11" font-weight="bold">HTTP 429 Too Many Requests — Standard Response Headers:</text>
+    <text x="490" y="218" fill="#047857" font-size="10.5" font-family="monospace">X-RateLimit-Limit: 100 | X-RateLimit-Remaining: 0 | Retry-After: 12</text>
+  </svg>
+</div>
+
+<h2 class="lang-vi">2. Bảng So sánh 4 Thuật toán Rate Limiting (Chọn cái nào cho bài toán nào?)</h2>
+<h2 class="lang-en">2. Comparing the 4 Rate Limiting Algorithms (Which One to Choose?)</h2>
+
+<table>
+  <thead>
+    <tr>
+      <th><span class="lang-vi">Thuật toán</span><span class="lang-en">Algorithm</span></th>
+      <th><span class="lang-vi">Ưu điểm</span><span class="lang-en">Pros</span></th>
+      <th><span class="lang-vi">Nhược điểm</span><span class="lang-en">Cons</span></th>
+      <th><span class="lang-vi">Dùng khi nào?</span><span class="lang-en">Best Use Case</span></th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>1. Token Bucket</strong></td>
+      <td><span class="lang-vi">Tiết kiệm RAM (chỉ lưu 2 số: <code>tokens</code> &amp; <code>lastRefill</code>), cho phép Burst ngắn hạn hợp lệ.</span><span class="lang-en">Tiny memory footprint (2 fields), allows legitimate short bursts.</span></td>
+      <td><span class="lang-vi">Cần chạy bằng Redis Lua để tránh Race Condition.</span><span class="lang-en">Requires Redis Lua script for atomic read-refill-decrement.</span></td>
+      <td><span class="lang-vi"><strong>Public REST APIs</strong> (Stripe, Cloudflare, OPSWAT File Scan API).</span><span class="lang-en"><strong>Public REST APIs</strong> (Stripe, Cloudflare, OPSWAT APIs).</span></td>
+    </tr>
+    <tr>
+      <td><strong>2. Sliding Window Counter</strong></td>
+      <td><span class="lang-vi">Chống triệt để lỗi gấp đôi lưu lượng ở ranh giới phút, siêu nhẹ RAM.</span><span class="lang-en">Solves boundary spike with minimal memory (weights previous + current window).</span></td>
+      <td><span class="lang-vi">Xấp xỉ theo trọng số (nhưng chính xác tới 99.9%).</span><span class="lang-en">Weighted approximation (99.9% accurate in practice).</span></td>
+      <td><span class="lang-vi"><strong>API Gateway toàn cục</strong> (100 req/phút/IP).</span><span class="lang-en"><strong>Global API Gateway</strong> throttling per IP/Tenant.</span></td>
+    </tr>
+    <tr>
+      <td><strong>3. Sliding Window Log</strong></td>
+      <td><span class="lang-vi">Chính xác tuyệt đối 100% tới từng mili-giây (Dùng Redis Sorted Set <code>ZSET</code>).</span><span class="lang-en">100% exact millisecond precision using Redis Sorted Set (<code>ZSET</code>).</span></td>
+      <td><span class="lang-vi">Tốn RAM vì phải lưu timestamp của mọi request trong cửa sổ.</span><span class="lang-en">Higher memory as every request timestamp is stored in ZSET.</span></td>
+      <td><span class="lang-vi"><strong>Chặn Spam SMS OTP / Login Brute-force</strong> (Tối đa 3 lần / 15 phút).</span><span class="lang-en"><strong>Strict Security / SMS OTP / Login</strong> (Max 3 attempts / 15 mins).</span></td>
+    </tr>
+    <tr>
+      <td><strong>4. Leaky Bucket</strong></td>
+      <td><span class="lang-vi">Đầu ra luôn nhỏ giọt với tốc độ phẳng tuyệt đối.</span><span class="lang-en">Guarantees a perfectly flat, constant outflow rate.</span></td>
+      <td><span class="lang-vi">Không cho phép Burst dù hệ thống đang rảnh.</span><span class="lang-en">Penalizes legitimate bursts even when downstream is idle.</span></td>
+      <td><span class="lang-vi">Gọi sang hệ thống đối tác Ngân hàng cũ có giới hạn TPS cứng.</span><span class="lang-en">Calling legacy third-party banking APIs with strict TPS caps.</span></td>
+    </tr>
+  </tbody>
+</table>
+  <script>
+    function switchLang(lang, btn) {
+      document.body.setAttribute('data-vault-lang', lang);
+      document.querySelectorAll('.lang-btn').forEach(b => b.classList.remove('active'));
+      if (btn) btn.classList.add('active');
+    }
+  </script>
+</body>
+</html>

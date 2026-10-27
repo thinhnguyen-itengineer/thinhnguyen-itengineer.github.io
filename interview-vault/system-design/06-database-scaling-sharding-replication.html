@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>[System Design #6] Mở rộng SQL Database từ 1 Triệu lên 500 Triệu dòng: Indexing, Read Replicas (Replication Lag), Partitioning & Sharding | [System Design #6] Scaling SQL Databases from 1M to 500M Rows: Indexing, Read Replicas (Replication Lag), Partitioning & Sharding</title>
+  <style>
+    :root {
+      --bg: #f8fafc;
+      --card: #ffffff;
+      --text: #0f172a;
+      --muted: #475569;
+      --border: #e2e8f0;
+      --primary: #006194;
+    }
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      max-width: 980px;
+      margin: 0 auto;
+      padding: 24px 16px 60px;
+      line-height: 1.65;
+    }
+    .standalone-toolbar {
+      position: sticky;
+      top: 12px;
+      z-index: 50;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+      background: rgba(255, 255, 255, 0.92);
+      backdrop-filter: blur(10px);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 10px 16px;
+      margin-bottom: 24px;
+      box-shadow: 0 4px 20px rgba(15, 23, 42, 0.06);
+    }
+    .lang-btn {
+      border: 1px solid var(--border);
+      background: #f1f5f9;
+      color: #334155;
+      padding: 6px 14px;
+      border-radius: 10px;
+      font-weight: 600;
+      font-size: 13px;
+      cursor: pointer;
+    }
+    .lang-btn.active {
+      background: var(--primary);
+      color: #fff;
+      border-color: var(--primary);
+    }
+    body[data-vault-lang="vi"] .lang-en { display: none !important; }
+    body[data-vault-lang="en"] .lang-vi { display: none !important; }
+    body[data-vault-lang="both"] div.lang-en,
+    body[data-vault-lang="both"] p.lang-en {
+      border-top: 1px dashed rgba(140, 160, 190, 0.4);
+      padding-top: 8px;
+      margin-top: 8px;
+    }
+    .sd-source-box {
+      border-radius: 16px;
+      border: 1px solid rgba(0, 97, 148, 0.3);
+      background: linear-gradient(135deg, rgba(0, 97, 148, 0.08), rgba(16, 185, 129, 0.06));
+      padding: 16px 20px;
+      margin-bottom: 20px;
+    }
+    .sd-analogy-box {
+      border-radius: 16px;
+      border-left: 4px solid #f59e0b;
+      background: rgba(245, 158, 11, 0.09);
+      padding: 16px 20px;
+      margin: 16px 0;
+    }
+    .sd-diagram-box {
+      border-radius: 16px;
+      border: 1px solid rgba(140, 160, 190, 0.35);
+      background: #ffffff;
+      padding: 20px;
+      margin: 20px 0;
+      overflow-x: auto;
+    }
+    .sd-takeaway-box {
+      border-radius: 16px;
+      border-left: 4px solid #10b981;
+      background: rgba(16, 185, 129, 0.09);
+      padding: 16px 20px;
+      margin: 16px 0;
+    }
+    table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 14px; }
+    th, td { border: 1px solid #cbd5e1; padding: 10px 12px; text-align: left; }
+    th { background: #f1f5f9; font-weight: 700; }
+    pre { background: #0f172a; color: #f8fafc; padding: 16px; border-radius: 12px; overflow-x: auto; font-size: 13px; }
+    code { font-family: Consolas, 'JetBrains Mono', monospace; }
+  </style>
+</head>
+<body data-vault-lang="vi">
+  <div class="standalone-toolbar">
+    <div style="font-weight: 700; font-size: 14px; color: #006194;">🏛️ System Design — Vietnam Tech Interview Vault</div>
+    <div style="display: flex; gap: 6px;">
+      <button class="lang-btn active" onclick="switchLang('vi', this)">🇻🇳 Tiếng Việt</button>
+      <button class="lang-btn" onclick="switchLang('en', this)">🇬🇧 English</button>
+      <button class="lang-btn" onclick="switchLang('both', this)">⚡ Song ngữ (VI + EN)</button>
+    </div>
+  </div>
+  <h1 class="lang-vi">[System Design #6] Mở rộng SQL Database từ 1 Triệu lên 500 Triệu dòng: Indexing, Read Replicas (Replication Lag), Partitioning & Sharding</h1>
+  <h1 class="lang-en">[System Design #6] Scaling SQL Databases from 1M to 500M Rows: Indexing, Read Replicas (Replication Lag), Partitioning & Sharding</h1>
+  <div class="sd-source-box">
+  <div class="lang-vi">
+    <strong>📌 Nguồn câu hỏi &amp; Độ tin cậy (Verified Vietnam Tech Interviews):</strong>
+    <ul>
+      <li><strong>Các công ty thường hỏi tại Việt Nam:</strong> <strong>NAB Innovation Centre Vietnam</strong>, <strong>KiotViet (Citigo)</strong>, <strong>FPT Software</strong>, <strong>KMS Technology</strong>, <strong>Bosch (BGSV)</strong>, <strong>Auvenir</strong>.</li>
+      <li><strong>Vòng phỏng vấn:</strong> Vòng 2 — <em>Database &amp; System Architecture (Senior .NET / Solution Architect)</em>.</li>
+      <li><strong>Trích xuất nguồn thực tế:</strong>
+        <ul>
+          <li><em>ITViec &amp; Glassdoor Vietnam — KiotViet &amp; NAB Vietnam Senior .NET Interview:</em> "Bảng Orders trong SQL Server của bạn đã phình lên 300 triệu dòng, các câu query danh sách đơn hàng bắt đầu timeout (> 10 giây). Hãy trình bày lộ trình tối ưu và mở rộng từ thấp đến cao. Nếu dùng Read Replicas mà bị Replication Lag (vừa tạo đơn xong F5 chưa thấy đơn) thì xử lý thế nào?"</li>
+        </ul>
+      </li>
+    </ul>
+  </div>
+  <div class="lang-en">
+    <strong>📌 Verified Interview Source &amp; Credibility (Vietnam Tech Market):</strong>
+    <ul>
+      <li><strong>Frequently Asked By in Vietnam:</strong> <strong>NAB Innovation Centre Vietnam</strong>, <strong>KiotViet (Citigo)</strong>, <strong>FPT Software</strong>, <strong>KMS Technology</strong>, <strong>Bosch (BGSV)</strong>, <strong>Auvenir</strong>.</li>
+      <li><strong>Interview Round:</strong> Round 2 — <em>Database &amp; System Architecture (Senior .NET / Solution Architect)</em>.</li>
+      <li><strong>Documented Sources:</strong>
+        <ul>
+          <li><em>ITViec &amp; Glassdoor Vietnam — KiotViet &amp; NAB Vietnam Senior .NET Interview:</em> "Your SQL Server Orders table has grown to 300 million rows and queries are timing out (> 10s). Walk through your step-by-step scaling roadmap. Also, how do you solve Replication Lag (user creates an order, refreshes immediately, and doesn't see it) when using Read Replicas?"</li>
+        </ul>
+      </li>
+    </ul>
+  </div>
+</div>
+
+<div class="sd-analogy-box">
+  <div class="lang-vi">
+    <strong>💡 Nguyên tắc vàng khi trả lời phỏng vấn: "Đừng bao giờ nhảy bổ vào Sharding ngay câu đầu tiên!"</strong>
+    <p>Người phỏng vấn Senior luôn muốn thấy bạn đi từ <strong>giải pháp rẻ nhất, ít đập phá kiến trúc nhất</strong> rồi mới nâng cấp dần theo quy mô dữ liệu:</p>
+    <ul>
+      <li><strong>Giai đoạn 1 (1M ➔ 20M dòng):</strong> Sửa câu Query + Đánh <strong>Covering Index (INCLUDE)</strong> + Bỏ phân trang <code>OFFSET</code> thay bằng <strong>Keyset/Cursor Pagination</strong>. (Chi phí: 0đ, nhanh gấp 100 lần!).</li>
+      <li><strong>Giai đoạn 2 (20M ➔ 80M dòng):</strong> Tách Đọc/Ghi (<strong>1 Master Write + 3 Read Replicas</strong>) + Bọc Redis Cache.</li>
+      <li><strong>Giai đoạn 3 (80M ➔ 200M dòng):</strong> <strong>Table Partitioning</strong> theo tháng + <strong>Data Archiving</strong> (Đẩy đơn hàng cũ trên 1 năm sang kho lưu trữ lạnh Cold Storage / ClickHouse).</li>
+      <li><strong>Giai đoạn 4 (200M ➔ 1 Tỷ+ dòng):</strong> <strong>Horizontal Sharding</strong> (Chia nhỏ dữ liệu ra nhiều Server vật lý theo <code>TenantId</code> hoặc <code>MerchantId</code> + Dùng <strong>Snowflake 64-bit ID</strong>).</li>
+    </ul>
+  </div>
+  <div class="lang-en">
+    <strong>💡 Golden Interview Rule: "Never Jump Straight to Sharding in Your First Sentence!"</strong>
+    <p>Senior interviewers test your engineering judgment—always progress from <strong>lowest complexity &amp; highest ROI</strong> to distributed sharding:</p>
+    <ul>
+      <li><strong>Stage 1 (1M ➔ 20M rows):</strong> Query tuning + <strong>Covering Indexes (INCLUDE)</strong> + Replace <code>OFFSET</code> pagination with <strong>Keyset/Cursor Pagination</strong>. (Cost: $0, 100x speedup!).</li>
+      <li><strong>Stage 2 (20M ➔ 80M rows):</strong> <strong>Read/Write Splitting (1 Master + 3 Read Replicas)</strong> + Redis Caching.</li>
+      <li><strong>Stage 3 (80M ➔ 200M rows):</strong> <strong>Table Partitioning</strong> by month + <strong>Cold Data Archiving</strong> (move orders &gt; 1 year old to Cold DB).</li>
+      <li><strong>Stage 4 (200M ➔ 1B+ rows):</strong> <strong>Horizontal Sharding</strong> across physical DB nodes by <code>TenantId</code> / <code>MerchantId</code> + <strong>Snowflake 64-bit IDs</strong>.</li>
+    </ul>
+  </div>
+</div>
+
+<h2 class="lang-vi">1. Hình vẽ Hệ thống: Xử lý lỗi "Replication Lag" (Vừa tạo đơn xong F5 lại không thấy đơn!)</h2>
+<h2 class="lang-en">1. System Diagram: Solving "Replication Lag" (Read-Your-Own-Writes Consistency)</h2>
+
+<div class="lang-vi">
+  <p><strong>Ví dụ thực tế:</strong> Khi tách <strong>Master DB (Chuyên Ghi)</strong> và <strong>Read Replica DB (Chuyên Đọc)</strong>, quá trình đồng bộ từ Master sang Replica mất khoảng <code>200ms - 800ms</code>. Nhưng khách hàng vừa bấm "Tạo đơn hàng" xong, trình duyệt lập tức chuyển trang (Redirect) sang trang "Danh sách đơn hàng" trong vòng <code>50ms</code> và đọc vào <strong>Read Replica</strong> ➔ Replica chưa kịp nhận dữ liệu mới nên khách hàng hoảng hốt tưởng <em>"Mất tiền mà không có đơn!"</em></p>
+</div>
+<div class="lang-en">
+  <p><strong>Real-World Scenario:</strong> Replication from <strong>Master DB (Write)</strong> to <strong>Read Replica DB (Read)</strong> takes <code>200ms–800ms</code>. Right after a user creates an order, the UI redirects to "My Orders" within <code>50ms</code> and queries the <strong>Read Replica</strong> ➔ The new order hasn't replicated yet, so the user panics thinking their order vanished!</p>
+</div>
+
+<div class="sd-diagram-box">
+  <svg viewBox="0 0 900 265" style="width:100%; min-width:700px; height:auto; font-family:system-ui,sans-serif;">
+    <defs>
+      <marker id="arrow-q6" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+        <path d="M 0 1 L 10 5 L 0 9 z" fill="#006194"/>
+      </marker>
+    </defs>
+
+    <!-- User / API -->
+    <rect x="15" y="45" width="215" height="175" rx="12" fill="#e0f2fe" stroke="#0284c7" stroke-width="2"/>
+    <text x="30" y="72" fill="#0369a1" font-size="13" font-weight="bold">① .NET Smart DB Router</text>
+    <text x="30" y="96" fill="#0f172a" font-size="11" font-weight="600">Khi User #42 vừa GHI (INSERT):</text>
+    <text x="30" y="114" fill="#047857" font-size="10.5">➔ Gắn cờ Redis: recent_write:42</text>
+    <text x="30" y="130" fill="#047857" font-size="10.5">  với thời hạn TTL = 3 giây.</text>
+    <text x="30" y="156" fill="#0f172a" font-size="11" font-weight="600">Khi User #42 gọi ĐỌC (SELECT):</text>
+    <text x="30" y="174" fill="#b45309" font-size="10.5" font-weight="bold">• Nếu còn cờ 3s ➔ Đọc từ MASTER!</text>
+    <text x="30" y="192" fill="#334155" font-size="10.5">• Hết 3s ➔ Đọc từ READ REPLICA.</text>
+
+    <!-- Redis Flag -->
+    <rect x="295" y="15" width="235" height="68" rx="10" fill="#fef3c7" stroke="#d97706" stroke-width="2"/>
+    <text x="312" y="40" fill="#b45309" font-size="12" font-weight="bold">⚡ Redis Sticky Flag (TTL = 3s)</text>
+    <text x="312" y="60" fill="#1e293b" font-size="11" font-family="monospace">SET recent_write:user_42 1 EX 3</text>
+
+    <!-- Master DB -->
+    <rect x="600" y="25" width="280" height="92" rx="12" fill="#ecfdf5" stroke="#10b981" stroke-width="2"/>
+    <text x="618" y="52" fill="#065f46" font-size="13" font-weight="bold">② MASTER SQL DB (Primary)</text>
+    <text x="618" y="74" fill="#047857" font-size="11">• Nhận 100% lệnh INSERT / UPDATE</text>
+    <text x="618" y="94" fill="#047857" font-size="11" font-weight="bold">• Nhận lệnh SELECT của User vừa ghi (&lt;3s)</text>
+
+    <!-- Replica DB -->
+    <rect x="600" y="155" width="280" height="92" rx="12" fill="#f3e8ff" stroke="#7c3aed" stroke-width="2"/>
+    <text x="618" y="182" fill="#5b21b6" font-size="13" font-weight="bold">③ READ REPLICAS (3 Nodes)</text>
+    <text x="618" y="204" fill="#334155" font-size="11">• Gánh 95% lượng SELECT thông thường</text>
+    <text x="618" y="224" fill="#6d28d9" font-size="11">• Đã đồng bộ xong sau 200ms-500ms</text>
+
+    <line x1="230" y1="85" x2="595" y2="68" stroke="#006194" stroke-width="2.2" marker-end="url(#arrow-q6)"/>
+    <text x="360" y="102" fill="#047857" font-size="11" font-weight="bold">Đọc trong 3s đầu (Read-Your-Own-Writes)</text>
+
+    <line x1="230" y1="185" x2="595" y2="195" stroke="#006194" stroke-width="2.2" marker-end="url(#arrow-q6)"/>
+    <text x="360" y="180" fill="#5b21b6" font-size="11" font-weight="bold">95% lượt đọc bình thường (Sau 3s)</text>
+
+    <line x1="740" y1="117" x2="740" y2="150" stroke="#d97706" stroke-width="2" stroke-dasharray="4,4" marker-end="url(#arrow-q6)"/>
+    <text x="752" y="138" fill="#b45309" font-size="10.5" font-weight="bold">Async Replication (200ms)</text>
+  </svg>
+</div>
+
+<h2 class="lang-vi">2. Ví dụ thực tế: Tại sao phân trang <code>OFFSET 1000000</code> làm treo SQL, còn <code>Keyset Pagination</code> chỉ mất 1ms?</h2>
+<h2 class="lang-en">2. Concrete Example: Why <code>OFFSET 1000000</code> Freezes SQL While <code>Keyset Pagination</code> Takes 1ms</h2>
+
+<div class="lang-vi">
+  <ul>
+    <li>🐢 <strong>Cách chậm (Offset Pagination):</strong> <code>SELECT * FROM Orders ORDER BY Id DESC OFFSET 1000000 ROWS FETCH NEXT 20 ROWS ONLY</code>
+      ➔ SQL Server vẫn phải <strong>lôi cổ cả 1.000.020 dòng lên đĩa/RAM</strong>, đếm bỏ đi 1.000.000 dòng đầu rồi mới trả về 20 dòng cuối! Càng lật trang sâu (trang 50.000), DB càng chậm cấp số nhân (~8 giây).</li>
+    <li>🚀 <strong>Cách siêu tốc (Keyset / Seek Pagination):</strong> Nhớ <code>LastSeenId</code> của dòng thứ 20 ở trang trước (ví dụ <code>LastSeenId = 8500120</code>) rồi truyền vào câu tiếp theo:
+      <code>SELECT TOP 20 * FROM Orders WHERE Id &lt; 8500120 ORDER BY Id DESC</code>
+      ➔ Cây B-Tree Clustered Index nhảy (Seek) thẳng tới vị trí <code>8500120</code> và nhặt đúng 20 dòng kế tiếp! <strong>Dù ở trang 1 hay trang 100.000 cũng chỉ mất <code>0.8ms</code>!</strong></li>
+  </ul>
+</div>
+<div class="lang-en">
+  <ul>
+    <li>🐢 <strong>Slow (Offset Pagination):</strong> <code>SELECT * FROM Orders ORDER BY Id DESC OFFSET 1000000 ROWS FETCH NEXT 20 ROWS ONLY</code>
+      ➔ SQL Server still scans through <strong>1,000,020 rows</strong> just to discard the first 1,000,000! Deep pages take ~8 seconds.</li>
+    <li>🚀 <strong>Ultra-Fast (Keyset / Cursor Pagination):</strong> Pass the last row's ID from the previous page (<code>LastSeenId = 8500120</code>):
+      <code>SELECT TOP 20 * FROM Orders WHERE Id &lt; 8500120 ORDER BY Id DESC</code>
+      ➔ B-Tree Index performs a direct Index Seek to <code>8500120</code> and reads only 20 rows. <strong>Page 100,000 is just as fast as Page 1 (<code>0.8ms</code>)!</strong></li>
+  </ul>
+</div>
+  <script>
+    function switchLang(lang, btn) {
+      document.body.setAttribute('data-vault-lang', lang);
+      document.querySelectorAll('.lang-btn').forEach(b => b.classList.remove('active'));
+      if (btn) btn.classList.add('active');
+    }
+  </script>
+</body>
+</html>

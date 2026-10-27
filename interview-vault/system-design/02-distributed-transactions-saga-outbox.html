@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>[System Design #2] Giao dịch phân tán: Tại sao không dùng 2PC? Thiết kế Saga Pattern + Outbox & Idempotency chống trừ tiền 2 lần | [System Design #2] Distributed Transactions: Why Not 2PC? Designing Saga Pattern + Outbox & Idempotency Against Double Charging</title>
+  <style>
+    :root {
+      --bg: #f8fafc;
+      --card: #ffffff;
+      --text: #0f172a;
+      --muted: #475569;
+      --border: #e2e8f0;
+      --primary: #006194;
+    }
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      max-width: 980px;
+      margin: 0 auto;
+      padding: 24px 16px 60px;
+      line-height: 1.65;
+    }
+    .standalone-toolbar {
+      position: sticky;
+      top: 12px;
+      z-index: 50;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+      background: rgba(255, 255, 255, 0.92);
+      backdrop-filter: blur(10px);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 10px 16px;
+      margin-bottom: 24px;
+      box-shadow: 0 4px 20px rgba(15, 23, 42, 0.06);
+    }
+    .lang-btn {
+      border: 1px solid var(--border);
+      background: #f1f5f9;
+      color: #334155;
+      padding: 6px 14px;
+      border-radius: 10px;
+      font-weight: 600;
+      font-size: 13px;
+      cursor: pointer;
+    }
+    .lang-btn.active {
+      background: var(--primary);
+      color: #fff;
+      border-color: var(--primary);
+    }
+    body[data-vault-lang="vi"] .lang-en { display: none !important; }
+    body[data-vault-lang="en"] .lang-vi { display: none !important; }
+    body[data-vault-lang="both"] div.lang-en,
+    body[data-vault-lang="both"] p.lang-en {
+      border-top: 1px dashed rgba(140, 160, 190, 0.4);
+      padding-top: 8px;
+      margin-top: 8px;
+    }
+    .sd-source-box {
+      border-radius: 16px;
+      border: 1px solid rgba(0, 97, 148, 0.3);
+      background: linear-gradient(135deg, rgba(0, 97, 148, 0.08), rgba(16, 185, 129, 0.06));
+      padding: 16px 20px;
+      margin-bottom: 20px;
+    }
+    .sd-analogy-box {
+      border-radius: 16px;
+      border-left: 4px solid #f59e0b;
+      background: rgba(245, 158, 11, 0.09);
+      padding: 16px 20px;
+      margin: 16px 0;
+    }
+    .sd-diagram-box {
+      border-radius: 16px;
+      border: 1px solid rgba(140, 160, 190, 0.35);
+      background: #ffffff;
+      padding: 20px;
+      margin: 20px 0;
+      overflow-x: auto;
+    }
+    .sd-takeaway-box {
+      border-radius: 16px;
+      border-left: 4px solid #10b981;
+      background: rgba(16, 185, 129, 0.09);
+      padding: 16px 20px;
+      margin: 16px 0;
+    }
+    table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 14px; }
+    th, td { border: 1px solid #cbd5e1; padding: 10px 12px; text-align: left; }
+    th { background: #f1f5f9; font-weight: 700; }
+    pre { background: #0f172a; color: #f8fafc; padding: 16px; border-radius: 12px; overflow-x: auto; font-size: 13px; }
+    code { font-family: Consolas, 'JetBrains Mono', monospace; }
+  </style>
+</head>
+<body data-vault-lang="vi">
+  <div class="standalone-toolbar">
+    <div style="font-weight: 700; font-size: 14px; color: #006194;">🏛️ System Design — Vietnam Tech Interview Vault</div>
+    <div style="display: flex; gap: 6px;">
+      <button class="lang-btn active" onclick="switchLang('vi', this)">🇻🇳 Tiếng Việt</button>
+      <button class="lang-btn" onclick="switchLang('en', this)">🇬🇧 English</button>
+      <button class="lang-btn" onclick="switchLang('both', this)">⚡ Song ngữ (VI + EN)</button>
+    </div>
+  </div>
+  <h1 class="lang-vi">[System Design #2] Giao dịch phân tán: Tại sao không dùng 2PC? Thiết kế Saga Pattern + Outbox & Idempotency chống trừ tiền 2 lần</h1>
+  <h1 class="lang-en">[System Design #2] Distributed Transactions: Why Not 2PC? Designing Saga Pattern + Outbox & Idempotency Against Double Charging</h1>
+  <div class="sd-source-box">
+  <div class="lang-vi">
+    <strong>📌 Nguồn câu hỏi &amp; Độ tin cậy (Verified Vietnam Tech Interviews):</strong>
+    <ul>
+      <li><strong>Các công ty thường hỏi tại Việt Nam:</strong> <strong>MoMo (M_Service)</strong>, <strong>VNPay</strong>, <strong>ZaloPay</strong>, <strong>TymeX (Tyme Vietnam)</strong>, <strong>NAB Innovation Centre Vietnam</strong>, <strong>KMS Technology / Auvenir</strong>.</li>
+      <li><strong>Vòng phỏng vấn:</strong> Vòng 2 — <em>System Design &amp; Microservices Architecture (Senior .NET / Backend Engineer)</em>.</li>
+      <li><strong>Trích xuất nguồn thực tế:</strong>
+        <ul>
+          <li><em>ITViec &amp; Glassdoor Vietnam — TymeX &amp; NAB Vietnam Senior Engineer Interview:</em> "Khi tách hệ thống thành Order Service, Payment Service và Inventory Service có Database riêng, tại sao không dùng 2PC? Khi nào chọn Saga Choreography vs Orchestration? Làm sao chống mất message khi DB đã lưu nhưng Kafka bị rớt mạng (Outbox Pattern) và chống trừ tiền 2 lần (Idempotency)?"</li>
+        </ul>
+      </li>
+    </ul>
+  </div>
+  <div class="lang-en">
+    <strong>📌 Verified Interview Source &amp; Credibility (Vietnam Tech Market):</strong>
+    <ul>
+      <li><strong>Frequently Asked By in Vietnam:</strong> <strong>MoMo (M_Service)</strong>, <strong>VNPay</strong>, <strong>ZaloPay</strong>, <strong>TymeX (Tyme Vietnam)</strong>, <strong>NAB Innovation Centre Vietnam</strong>, <strong>KMS Technology / Auvenir</strong>.</li>
+      <li><strong>Interview Round:</strong> Round 2 — <em>System Design &amp; Microservices Architecture (Senior .NET / Backend Engineer)</em>.</li>
+      <li><strong>Documented Sources:</strong>
+        <ul>
+          <li><em>ITViec &amp; Glassdoor Vietnam — TymeX &amp; NAB Vietnam Senior Engineer Interview:</em> "When Order, Payment, and Inventory services each own a private database, why avoid 2PC? When do you choose Saga Choreography vs Orchestration? How do you solve the dual-write problem (Transactional Outbox) and prevent double charging (Idempotency)?"</li>
+        </ul>
+      </li>
+    </ul>
+  </div>
+</div>
+
+<div class="sd-analogy-box">
+  <div class="lang-vi">
+    <strong>💡 Ví dụ hình dung đời thực (Đặt Tiệc Cưới Trọn Gói = Nhà hàng + Ban nhạc + Nhiếp ảnh):</strong>
+    <ul>
+      <li>🐢 <strong>Two-Phase Commit (2PC) — "Bắt cả 3 nơi giữ máy điện thoại chờ nhau":</strong>
+        Bạn gọi điện cho Chủ nhà hàng, Ban nhạc và Thợ ảnh, bắt cả 3 người <strong>cùng giữ máy không được tiếp khách khác</strong>. Bạn hỏi: <em>"Cả 3 sẵn sàng chưa?"</em> (Phase 1). Nếu Thợ ảnh đi vào thang máy mất sóng 30 giây, cả Nhà hàng và Ban nhạc cũng bị treo máy đứng hình theo! ➔ <strong>Nghẽn toàn hệ thống, không thể mở rộng (Scale)</strong>.</li>
+      <li>💃 <strong>Saga Choreography — "Nhảy chuyền tay không có người chỉ huy":</strong>
+        Nhà hàng đặt bàn xong tự nhắn cho Ban nhạc; Ban nhạc nhận lịch xong tự nhắn cho Thợ ảnh. Với 2-3 bên thì nhanh, nhưng nếu đám cưới có <strong>8 dịch vụ (Hoa tươi, Xe dâu, MC, Trang điểm...)</strong> mà bước thứ 7 bị lỗi, các bên tự nhắn ngược để hủy sẽ tạo thành <strong>mạng nhện vòng lặp (Cyclic Dependency)</strong> không ai biết đơn đang kẹt ở đâu!</li>
+      <li>🎼 <strong>Saga Orchestration — "Có 1 Nhạc trưởng / Wedding Planner điều phối trung tâm (MassTransit / Temporal)":</strong>
+        Một người quản lý duy nhất cầm cuốn sổ trạng thái (State Machine): Bước 1 gọi Kho giữ hàng ➔ Bước 2 gọi Ví trừ tiền. Nếu Ví báo <em>"Không đủ tiền!"</em>, Nhạc trưởng lập tức phát lệnh <strong>Compensating (Giao dịch bù trừ)</strong>: Yêu cầu Kho nhả hàng ra và đóng đơn!</li>
+    </ul>
+  </div>
+  <div class="lang-en">
+    <strong>💡 Real-Life Mental Analogy (Booking a Wedding Package = Venue + Band + Photographer):</strong>
+    <ul>
+      <li>🐢 <strong>Two-Phase Commit (2PC) — "Forcing all 3 vendors to stay on hold on a conference call":</strong>
+        You call the Venue, Band, and Photographer and force all three to <strong>lock their schedules and stay on the line</strong>. If the Photographer enters an elevator and loses signal for 30 seconds, the Venue and Band are completely blocked from serving any other customers!</li>
+      <li>💃 <strong>Saga Choreography — "Relay chain without a leader":</strong>
+        The Venue texts the Band; the Band texts the Photographer. Great for 2-3 services, but with <strong>8 services</strong>, if step 7 fails, everyone texting everyone else to cancel turns into an unmanageable <strong>spaghetti cycle</strong>.</li>
+      <li>🎼 <strong>Saga Orchestration — "A Central Wedding Planner / Conductor (MassTransit State Machine)":</strong>
+        One central coordinator holds the checklist: Step 1 Reserve Inventory ➔ Step 2 Charge Wallet. If Payment fails (<em>Insufficient funds</em>), the Planner immediately issues <strong>Compensating Transactions</strong> backward: Release Inventory and Mark Order Failed!</li>
+    </ul>
+  </div>
+</div>
+
+<h2 class="lang-vi">1. Hình vẽ Hệ thống: Luồng Saga Orchestration &amp; Rollback Bù TrừKhi Lỗi Thanh Toán</h2>
+<h2 class="lang-en">1. System Diagram: Saga Orchestration &amp; Compensating Rollback on Payment Failure</h2>
+
+<div class="sd-diagram-box">
+  <svg viewBox="0 0 900 320" style="width:100%; min-width:700px; height:auto; font-family:system-ui,sans-serif;">
+    <defs>
+      <marker id="arrow-green-q2" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+        <path d="M 0 1 L 10 5 L 0 9 z" fill="#059669"/>
+      </marker>
+      <marker id="arrow-red-q2" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+        <path d="M 0 1 L 10 5 L 0 9 z" fill="#dc2626"/>
+      </marker>
+    </defs>
+
+    <!-- Central Orchestrator -->
+    <rect x="310" y="15" width="280" height="65" rx="12" fill="#1e1b4b" stroke="#6366f1" stroke-width="2"/>
+    <text x="335" y="42" fill="#ffffff" font-size="13.5" font-weight="bold">🎼 SAGA ORCHESTRator (.NET MassTransit)</text>
+    <text x="345" y="62" fill="#a5b4fc" font-size="11">State Machine: Created ➔ Reserved ➔ Failed</text>
+
+    <!-- 3 Microservices -->
+    <rect x="30" y="160" width="220" height="80" rx="12" fill="#ecfdf5" stroke="#10b981" stroke-width="2"/>
+    <text x="50" y="188" fill="#065f46" font-size="13" font-weight="bold">1. Order Service (SQL)</text>
+    <text x="50" y="208" fill="#047857" font-size="11">• Tạo Order: Status = PENDING</text>
+    <text x="50" y="225" fill="#dc2626" font-size="11" font-weight="bold">• Rollback: Status = CANCELLED</text>
+
+    <rect x="340" y="160" width="220" height="80" rx="12" fill="#ecfdf5" stroke="#10b981" stroke-width="2"/>
+    <text x="360" y="188" fill="#065f46" font-size="13" font-weight="bold">2. Inventory Service (SQL)</text>
+    <text x="360" y="208" fill="#047857" font-size="11">• Forward: Trừ kho (-1 iPhone)</text>
+    <text x="360" y="225" fill="#dc2626" font-size="11" font-weight="bold">• Compensate: Cộng trả kho (+1)</text>
+
+    <rect x="650" y="160" width="220" height="80" rx="12" fill="#fef2f2" stroke="#ef4444" stroke-width="2"/>
+    <text x="670" y="188" fill="#991b1b" font-size="13" font-weight="bold">3. Payment Service (Wallet)</text>
+    <text x="670" y="208" fill="#b91c1c" font-size="11">• Thử trừ 25.000.000đ</text>
+    <text x="670" y="225" fill="#dc2626" font-size="11.5" font-weight="bold">❌ LỖI: Số dư ví không đủ!</text>
+
+    <!-- Arrows Forward -->
+    <line x1="340" y1="80" x2="150" y2="155" stroke="#059669" stroke-width="2" marker-end="url(#arrow-green-q2)"/>
+    <text x="175" y="112" fill="#059669" font-size="11" font-weight="bold">① Đơn mới</text>
+
+    <line x1="435" y1="80" x2="435" y2="155" stroke="#059669" stroke-width="2" marker-end="url(#arrow-green-q2)"/>
+    <text x="365" y="122" fill="#059669" font-size="11" font-weight="bold">② ReserveStock OK</text>
+
+    <line x1="550" y1="80" x2="740" y2="155" stroke="#059669" stroke-width="2" marker-end="url(#arrow-green-q2)"/>
+    <text x="645" y="112" fill="#059669" font-size="11" font-weight="bold">③ ChargeWallet</text>
+
+    <!-- Arrows Compensation Rollback -->
+    <path d="M 760 240 L 760 285 L 450 285 L 450 245" fill="none" stroke="#dc2626" stroke-width="2.2" stroke-dasharray="5,4" marker-end="url(#arrow-red-q2)"/>
+    <text x="515" y="276" fill="#dc2626" font-size="11" font-weight="bold">④ PaymentFailed ➔ Gọi ReleaseStock(+1)</text>
+
+    <path d="M 420 285 L 140 285 L 140 245" fill="none" stroke="#dc2626" stroke-width="2.2" stroke-dasharray="5,4" marker-end="url(#arrow-red-q2)"/>
+    <text x="195" y="304" fill="#dc2626" font-size="11" font-weight="bold">⑤ Gọi MarkOrderCancelled("Không đủ số dư")</text>
+  </svg>
+</div>
+
+<h2 class="lang-vi">2. Bài toán "Dual-Write" &amp; Hình vẽ Transactional Outbox Pattern</h2>
+<h2 class="lang-en">2. The "Dual-Write" Trap &amp; Transactional Outbox Pattern Diagram</h2>
+
+<div class="lang-vi">
+  <p><strong>Câu hỏi bẫy cực hay gặp ở MoMo / TymeX:</strong> <em>"Trong Order Service, sau khi anh gọi <code>await _db.SaveChangesAsync()</code> để lưu đơn hàng xong, dòng tiếp theo anh gọi <code>await _kafka.PublishAsync()</code> nhưng đúng lúc đó <strong>mất mạng hoặc sập nguồn Pod Kubernetes</strong> thì sao?"</em></p>
+  <ul>
+    <li>❌ <strong>Hậu quả nếu viết code bình thường:</strong> Đơn hàng đã nằm trong SQL Database, nhưng Kafka không bao giờ nhận được message ➔ Kho không trừ, Thanh toán không chạy ➔ <strong>Đơn hàng "ma" (Zombie Order) bị treo vĩnh viễn!</strong></li>
+    <li>✅ <strong>Giải pháp chuẩn: Transactional Outbox Pattern</strong> — Thay vì bắn trực tiếp lên Kafka, ta lưu luôn quả tin nhắn đó vào bảng <code>OutboxMessages</code> <strong>nằm chung trong cùng 1 ACID Transaction SQL</strong> với bảng <code>Orders</code>!</li>
+  </ul>
+</div>
+<div class="lang-en">
+  <p><strong>Classic Trap Question at MoMo / TymeX:</strong> <em>"In Order Service, right after <code>await _db.SaveChangesAsync()</code> commits to SQL, what happens if the <strong>Kubernetes Pod crashes or network drops</strong> right before <code>await _kafka.PublishAsync()</code> executes?"</em></p>
+  <ul>
+    <li>❌ <strong>Consequence of Naive Code:</strong> The order is saved in SQL, but the Kafka event is lost forever ➔ Inventory and Payment never trigger ➔ <strong>Inconsistent Zombie Order!</strong></li>
+    <li>✅ <strong>Production Solution: Transactional Outbox Pattern</strong> — Instead of calling Kafka directly inside the HTTP request, insert the event payload into an <code>OutboxMessages</code> table <strong>inside the exact same local SQL ACID Transaction</strong> as the <code>Orders</code> table!</li>
+  </ul>
+</div>
+
+<div class="sd-diagram-box">
+  <svg viewBox="0 0 880 215" style="width:100%; min-width:680px; height:auto; font-family:system-ui,sans-serif;">
+    <defs>
+      <marker id="arrow-outbox" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+        <path d="M 0 1 L 10 5 L 0 9 z" fill="#006194"/>
+      </marker>
+    </defs>
+
+    <!-- Step 1: API -->
+    <rect x="15" y="45" width="175" height="125" rx="12" fill="#e0f2fe" stroke="#0284c7" stroke-width="2"/>
+    <text x="30" y="75" fill="#0369a1" font-size="13" font-weight="bold">① .NET Order API</text>
+    <text x="30" y="98" fill="#0f172a" font-size="11">_db.Orders.Add(order);</text>
+    <text x="30" y="118" fill="#0f172a" font-size="11">_db.Outbox.Add(event);</text>
+    <text x="30" y="142" fill="#047857" font-size="11" font-weight="bold">await SaveChangesAsync();</text>
+
+    <line x1="190" y1="108" x2="245" y2="108" stroke="#006194" stroke-width="2.5" marker-end="url(#arrow-outbox)"/>
+    <text x="195" y="98" fill="#006194" font-size="10" font-weight="bold">1 ACID TX</text>
+
+    <!-- Step 2: SQL DB -->
+    <rect x="250" y="25" width="245" height="165" rx="12" fill="#fef3c7" stroke="#d97706" stroke-width="2"/>
+    <text x="268" y="50" fill="#b45309" font-size="13" font-weight="bold">② SQL Server (Cùng 1 Database)</text>
+    <rect x="268" y="62" width="210" height="48" rx="8" fill="#ffffff" stroke="#f59e0b"/>
+    <text x="278" y="82" fill="#0f172a" font-size="11" font-weight="bold">Bảng Orders</text>
+    <text x="278" y="99" fill="#475569" font-size="10.5">OrderId: #901 | Status: Pending</text>
+
+    <rect x="268" y="120" width="210" height="55" rx="8" fill="#ffffff" stroke="#f59e0b"/>
+    <text x="278" y="140" fill="#0f172a" font-size="11" font-weight="bold">Bảng OutboxMessages</text>
+    <text x="278" y="156" fill="#475569" font-size="10.5">Event: OrderCreated | Sent: false</text>
+
+    <line x1="495" y1="145" x2="555" y2="145" stroke="#006194" stroke-width="2.5" marker-end="url(#arrow-outbox)"/>
+    <text x="502" y="135" fill="#006194" font-size="10" font-weight="bold">Quét định kỳ</text>
+
+    <!-- Step 3: Relay Worker -->
+    <rect x="560" y="45" width="155" height="125" rx="12" fill="#f3e8ff" stroke="#7c3aed" stroke-width="2"/>
+    <text x="572" y="75" fill="#6d28d9" font-size="12.5" font-weight="bold">③ Outbox Worker</text>
+    <text x="572" y="96" fill="#334155" font-size="10.5">(Hoặc Debezium CDC)</text>
+    <text x="572" y="118" fill="#0f172a" font-size="11">• Đọc Sent == false</text>
+    <text x="572" y="136" fill="#0f172a" font-size="11">• Publish lên Kafka</text>
+    <text x="572" y="154" fill="#047857" font-size="11" font-weight="bold">• Đánh dấu Sent = true</text>
+
+    <line x1="715" y1="108" x2="755" y2="108" stroke="#006194" stroke-width="2.5" marker-end="url(#arrow-outbox)"/>
+
+    <!-- Step 4: Kafka + Consumers -->
+    <rect x="760" y="45" width="108" height="125" rx="12" fill="#ecfdf5" stroke="#10b981" stroke-width="2"/>
+    <text x="774" y="78" fill="#065f46" font-size="12.5" font-weight="bold">④ Kafka Bus</text>
+    <text x="772" y="102" fill="#047857" font-size="10.5">At-least-once</text>
+    <text x="772" y="120" fill="#047857" font-size="10.5">Không bao giờ</text>
+    <text x="772" y="136" fill="#047857" font-size="10.5">mất Message!</text>
+  </svg>
+</div>
+
+<h2 class="lang-vi">3. Chống Trừ Tiền 2 Lần bằng Idempotency Key (Khi mạng lag hoặc Kafka gửi lặp)</h2>
+<h2 class="lang-en">3. Preventing Double Charging with Idempotency Keys (Network Retries &amp; Duplicate Events)</h2>
+
+<div class="lang-vi">
+  <p><strong>Ví dụ thực tế:</strong> Khách hàng bấm nút <em>"Chuyển 5.000.000đ"</em> trên app ngân hàng. Yêu cầu đã tới Server và trừ tiền xong, nhưng đúng lúc trả kết quả về thì 4G bị rớt mạng. App tự động gửi lại (Retry) yêu cầu đó lần thứ 2! Làm sao Payment Service nhận ra đây là <strong>cùng 1 giao dịch</strong> để không trừ mất 10.000.000đ?</p>
+</div>
+<div class="lang-en">
+  <p><strong>Real-World Scenario:</strong> A user taps <em>"Transfer 5,000,000 VND"</em>. The server deducts the money, but the mobile 4G connection drops before the HTTP 200 response arrives. The mobile app automatically retries the exact same request! How does Payment Service avoid deducting 10,000,000 VND?</p>
+</div>
+
+<pre><code>// PaymentController.cs — Xử lý Idempotency-Key chống trừ tiền 2 lần
+[HttpPost("charge")]
+public async Task&lt;IActionResult&gt; ChargeWallet(
+    [FromHeader(Name = "Idempotency-Key")] string idempotencyKey,
+    [FromBody] ChargeRequest request)
+{
+    if (string.IsNullOrWhiteSpace(idempotencyKey))
+        return BadRequest("Missing Idempotency-Key header");
+
+    var redisKey = $"idempotency:payment:{idempotencyKey}";
+    var db = _redis.GetDatabase();
+
+    // 1. Thử chiếm khóa nguyên tử trên Redis (SET NX với TTL 24 giờ)
+    bool isFirstRequest = await db.StringSetAsync(
+        redisKey, "PROCESSING", TimeSpan.FromHours(24), When.NotExists);
+
+    if (!isFirstRequest)
+    {
+        // Request bị lặp! Kiểm tra xem lần trước đã xử lý xong chưa:
+        var existingState = await db.StringGetAsync(redisKey);
+        if (existingState == "PROCESSING")
+            return Conflict(new { message = "Giao dịch đang được xử lý, vui lòng không bấm lặp!" });
+
+        // Trả lại y hệt kết quả của lần thành công trước đó mà KHÔNG trừ tiền lại!
+        return Ok(JsonSerializer.Deserialize&lt;ChargeResponse&gt;(existingState!));
+    }
+
+    // 2. Lớp bảo vệ cuối cùng ở Database: Unique Constraint trên cột IdempotencyKey
+    var response = await _paymentService.ExecuteDebitInSqlTransactionAsync(request, idempotencyKey);
+
+    // 3. Lưu kết quả vào Redis để nếu client retry thì trả về ngay
+    await db.StringSetAsync(redisKey, JsonSerializer.Serialize(response), TimeSpan.FromHours(24));
+    return Ok(response);
+}</code></pre>
+  <script>
+    function switchLang(lang, btn) {
+      document.body.setAttribute('data-vault-lang', lang);
+      document.querySelectorAll('.lang-btn').forEach(b => b.classList.remove('active'));
+      if (btn) btn.classList.add('active');
+    }
+  </script>
+</body>
+</html>
